@@ -3,198 +3,288 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MONAD EXIT — GOD MODE</title>
+  <title>MONAD EXIT • Ultimate Wallet Connect</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@300;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@walletconnect/modal@2.6.2/dist/index.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <style>
+    :root {
+      --hot-pink: #ff2a6d;
+      --soft-white: #fafafa;
+      --glass: rgba(255,255,255,0.08);
+      --border: rgba(255,255,255,0.15);
+    }
     body {
-      background: linear-gradient(-45deg, #0a001f, #1a0033, #000428, #120030);
-      background-size: 400% 400%;
-      animation: gradient 15s ease infinite;
+      background: linear-gradient(135deg, #ffeef8 0%, #fff5fb 50%, #fad0e5 100%);
       font-family: 'Inter', sans-serif;
       min-height: 100vh;
     }
-    @keyframes gradient { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
-    .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
-    .glow { box-shadow: 0 0 40px rgba(168,85,247,0.6); }
-    .pulse { animation: pulse 3s infinite alternate; }
-    @keyframes pulse { from { box-shadow: 0 0 30px rgba(168,85,247,0.4); } to { box-shadow: 0 0 60px rgba(168,85,247,0.9); } }
-    .orb { position: fixed; border-radius: 50%; background: radial-gradient(circle, rgba(168,85,247,0.3), transparent); filter: blur(60px); pointer-events: none; z-index: -1; }
+    .glass {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 32px rgba(255,45,105,0.12);
+    }
+    .hot-glow { box-shadow: 0 0 40px rgba(255,42,109,0.4); }
+    .pulse-pink { animation: pulsePink 4s infinite alternate; }
+    @keyframes pulsePink { from { box-shadow: 0 0 20px rgba(255,42,109,0.3); } to { box-shadow: 0 0 60px rgba(255,42,109,0.6); } }
+    .text-gradient { background: linear-gradient(to right, #ff2a6d, #ff6b9d); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .wallet-hover { transition: all 0.3s ease; }
+    .wallet-hover:hover { transform: scale(1.05) rotate(5deg); }
+    .wallet-hover img { transition: transform 0.3s ease; }
+    .wallet-hover:hover img { transform: scale(1.1) rotateY(180deg); }
+    .modal-overlay { background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); }
+    .sparkle { position: absolute; width: 4px; height: 4px; background: var(--hot-pink); border-radius: 50%; animation: sparkle 2s infinite; }
+    @keyframes sparkle { 0%, 100% { opacity: 0; transform: scale(0); } 50% { opacity: 1; transform: scale(1); } }
   </style>
 </head>
-<body class="relative text-white overflow-hidden">
+<body class="text-gray-800">
 
-  <div class="orb top-0 left-0 w-96 h-96 animate-pulse"></div>
-  <div class="orb bottom-0 right-0 w-80 h-80 animate-pulse delay-700"></div>
+  <!-- Floating Sparks -->
+  <div id="sparks" class="fixed inset-0 pointer-events-none z-50 hidden"></div>
 
-  <div class="min-h-screen flex items-center justify-center p-6">
-    <div class="w-full max-w-6xl mx-auto">
+  <div class="min-h-screen px-4 py-8 md:py-12">
 
-      <!-- Header -->
-      <div class="text-center mb-16">
-        <h1 class="text-8xl md:text-9xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-purple-600 glow pulse">
-          MONAD EXIT
-        </h1>
-        <p class="text-2xl mt-6 font-light opacity-80">Deposit MON • Exit instantly • No trust required</p>
-      </div>
+    <!-- HEADER -->
+    <header class="text-center mb-12">
+      <h1 class="text-6xl md:text-8xl font-black tracking-tight text-gradient mb-4">
+        MONAD EXIT
+      </h1>
+      <p class="text-xl md:text-2xl font-light text-pink-700 opacity-90">
+        Deposit MON • Exit anytime • Zero trust • Ultra fast
+      </p>
+    </header>
 
-      <!-- CONNECT CARD (Visible until connected) -->
-      <div id="connectCard" class="glass rounded-3xl p-16 max-w-2xl mx-auto text-center glow pulse">
-        <h2 class="text-5xl font-bold mb-10">Connect Your Wallet</h2>
-        <p class="text-xl opacity-70 mb-12">This dApp runs exclusively on <span class="text-purple-2xl font-bold text-purple-400">Monad Mainnet</span></p>
+    <!-- WALLET CONNECT CARD (Top center) -->
+    <div id="connectCard" class="max-w-xl mx-auto mb-16">
+      <div class="glass rounded-3xl p-10 md:p-14 text-center hot-glow pulse-pink transition-all">
+        <h2 class="text-4xl md:text-5xl font-bold mb-6 text-gray-800">Connect Wallet</h2>
+        <p class="text-lg text-pink-700 mb-10">This dApp runs only on <span class="font-bold">Monad Mainnet</span></p>
 
-        <!-- Wallet Buttons -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-lg mx-auto">
-          <button id="metamaskBtn" class="glass p-8 rounded-2xl hover:scale-110 transition-all glow border border-purple-500/50">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask" class="w-16 h-16 mx-auto mb-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-4xl mx-auto">
+          <!-- MetaMask -->
+          <button id="metamaskBtn" class="glass rounded-2xl p-6 wallet-hover hot-glow">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" class="w-16 h-16 mx-auto mb-3" alt="MetaMask"/>
             <p class="text-xl font-bold">MetaMask</p>
           </button>
-          <button id="walletconnectBtn" class="glass p-8 rounded-2xl hover:scale-110 transition-all glow border border-pink-500/50">
-            <img src="https://walletconnect.com/_next/static/media/walletconnect-logo.svg" alt="WalletConnect" class="w-16 h-16 mx-auto mb-4 filter brightness-0 invert">
+          <!-- WalletConnect -->
+          <button id="wcBtn" class="glass rounded-2xl p-6 wallet-hover hot-glow">
+            <img src="https://walletconnect.com/_next/static/media/logo.1a2a2b3c.svg" class="w-12 h-12 mx-auto mb-3 filter brightness-0 invert" alt="WC"/>
             <p class="text-xl font-bold">WalletConnect</p>
+          </button>
+          <!-- Rainbow -->
+          <button id="rainbowBtn" class="glass rounded-2xl p-6 wallet-hover hot-glow">
+            <i class="fas fa-rainbow text-4xl text-indigo-500 mx-auto mb-3"></i>
+            <p class="text-xl font-bold">Rainbow</p>
+          </button>
+          <!-- Coinbase -->
+          <button id="coinbaseBtn" class="glass rounded-2xl p-6 wallet-hover hot-glow">
+            <img src="https://www.coinbase.com/assets/app/favicon-32x32.png" class="w-12 h-12 mx-auto mb-3" alt="Coinbase"/>
+            <p class="text-xl font-bold">Coinbase</p>
           </button>
         </div>
 
-        <p id="status" class="mt-10 text-lg text-yellow-300"></p>
+        <p id="status" class="mt-8 text-pink-600 font-medium text-lg"></p>
+      </div>
+    </div>
+
+    <!-- MAIN APP (Hidden until connected) -->
+    <div id="app" class="hidden max-w-6xl mx-auto">
+
+      <!-- Connected Address Bar -->
+      <div class="glass rounded-2xl p-6 mb-10 text-center hot-glow">
+        <p class="text-lg text-pink-700">Connected</p>
+        <p id="address" class="text-2xl md:text-3xl font-bold text-gradient mt-2 break-all"></p>
+        <button id="disconnectBtn" class="mt-4 text-sm text-pink-600 underline">Disconnect</button>
       </div>
 
-      <!-- MAIN APP (Hidden until connected) -->
-      <div id="app" class="hidden space-y-12">
+      <div class="grid lg:grid-cols-2 gap-10 mb-16">
 
-        <div class="glass rounded-3xl p-10 text-center glow">
-          <p class="text-2xl opacity-80">Connected</p>
-          <p id="walletAddr" class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500 mt-2"></p>
-        </div>
-
-        <div class="grid md:grid-cols-2 gap-12">
-
-          <!-- DEPOSIT -->
-          <div class="glass rounded-3xl p-12 glow border border-green-500/30 hover:border-green-400 transition-all">
-            <h3 class="text-6xl font-black text-green-400 mb-8">DEPOSIT</h3>
-            <input id="amount" type="text" placeholder="420.69" class="w-full bg-black/30 border border-purple-500/50 rounded-2xl px-8 py-6 text-3xl text-center focus:outline-none focus:ring-4 focus:ring-green-500"/>
-            <button id="depositBtn" class="mt-10 w-full py-8 text-3xl font-black rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 transform hover:scale-105 transition-all shadow-2xl">
-              DEPOSIT MON
-            </button>
-            <p class="mt-10 text-2xl">Your Balance: <span id="userBal" class="text-5xl font-black text-green-400">0</span> MON</p>
-          </div>
-
-          <!-- EXIT -->
-          <div class="glass rounded-3xl p-12 glow border border-red-500/30 hover:border-red-400 transition-all">
-            <h3 class="text-6xl font-black text-red-400 mb-8">EXIT</h3>
-            <button id="exitBtn" class="w-full py-10 text-4xl font-black rounded-2xl bg-gradient-to-r from-red-600 to-pink-700 hover:from-red-500 hover:to-pink-600 transform hover:scale-110 transition-all shadow-2xl">
-              WITHDRAW ALL
-            </button>
-            <p class="mt-10 text-2xl">You get back: <span id="exitBal" class="text-5xl font-black text-red-400">0</span> MON</p>
+        <!-- DEPOSIT CARD -->
+        <div class="glass rounded-3xl p-10 md:p-14 hot-glow pulse-pink">
+          <h3 class="text-5xl md:text-6xl font-black text-gradient mb-8">DEPOSIT</h3>
+          <input id="amount" type="text" placeholder="69.420" class="w-full bg-white/20 border border-pink-300/30 rounded-2xl px-8 py-6 text-3xl text-center focus:outline-none focus:ring-4 focus:ring-pink-400 placeholder-pink-400/50" />
+          <button id="depositBtn" class="mt-10 w-full py-6 text-2xl font-bold rounded-2xl bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-400 hover:to-pink-500 text-white shadow-xl transform hover:scale-105 active:scale-100 transition">
+            DEPOSIT MON
+          </button>
+          <div class="mt-10 text-center">
+            <p class="text-xl text-pink-700">Your Balance</p>
+            <p id="userBal" class="text-6xl font-black text-gradient mt-3">0</p>
+            <p class="text-lg text-pink-600">MON</p>
           </div>
         </div>
 
-        <div class="glass rounded-3xl p-10 text-center glow">
-          <p class="text-3xl opacity-80">Total Locked in Contract</p>
-          <p class="text-8xl font-black mt-6 bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-orange-500">
-            <span id="totalLocked">0</span> MON
-          </p>
+        <!-- EXIT CARD -->
+        <div class="glass rounded-3xl p-10 md:p-14 hot-glow pulse-pink">
+          <h3 class="text-5xl md:text-6xl font-black text-gradient mb-12">EXIT</h3>
+          <button id="exitBtn" class="w-full py-10 text-4xl font-black rounded-3xl bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-400 hover:to-pink-500 text-white shadow-2xl transform hover:scale-110 active:scale-105 transition">
+            WITHDRAW EVERYTHING
+          </button>
+          <div class="mt-12 text-center">
+            <p class="text-xl text-pink-700">You Receive</p>
+            <p id="exitBal" class="text-6xl font-black text-gradient mt-3">0</p>
+            <p class="text-lg text-pink-600">MON</p>
+          </div>
         </div>
+      </div>
 
-        <div class="text-center mt-16 text-gray-400">
-          Contract: <code class="text-purple-300 text-lg break-all">0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3</code>
-          <br><a href="https://monad-vision.vercel.app/address/0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3" target="_blank" class="underline hover:text-white">View on Explorer</a>
-        </div>
+      <!-- Total Locked -->
+      <div class="text-center mb-20">
+        <p class="text-2xl text-pink-700 mb-4">Total MON Locked</p>
+        <p id="totalLocked" class="text-8xl font-black text-gradient">0</p>
+      </div>
+
+      <!-- Footer -->
+      <div class="text-center text-pink-700/70 text-sm">
+        Contract: <code class="text-pink-800 font-mono">0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3</code>
+        <br><br>
+        <a href="https://monad-vision.vercel.app/address/0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3" target="_blank" class="underline hover:text-pink-900">View on Explorer</a>
       </div>
     </div>
   </div>
 
-<script src="https://unpkg.com/@walletconnect/modal@2.6.2/dist/index.js"></script>
+  <!-- WalletConnect Modal Overlay (Injected by WC, but styled) -->
+  <div id="wcModal" class="fixed inset-0 modal-overlay hidden z-50 flex items-center justify-center p-4">
+    <div class="glass rounded-3xl p-8 max-w-md w-full max-h-[80vh] overflow-y-auto">
+      <h3 class="text-2xl font-bold text-gray-800 mb-4">Select Wallet</h3>
+      <div id="wcWallets" class="space-y-4"></div>
+      <button id="closeWcModal" class="mt-6 w-full py-3 text-pink-600 font-bold rounded-xl border border-pink-300">Cancel</button>
+    </div>
+  </div>
+
 <script>
-// CONTRACT
 const CONTRACT = "0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3";
 const ABI = ["function deposit() payable","function exit()","function balances(address) view returns (uint256)","function totalDeposited() view returns (uint256)"];
+const MONAD = { chainId: "0x8f", chainName: "Monad Mainnet", nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 }, rpcUrls: ["https://rpc.monad.xyz"], blockExplorerUrls: ["https://monad-vision.vercel.app"] };
 
-const MONAD = {
-  chainId: 143,
-  chainName: "Monad Mainnet",
-  nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 },
-  rpcUrls: ["https://rpc.monad.xyz"],
-  blockExplorerUrls: ["https://monad-vision.vercel.app"]
-};
+let provider, signer, contract, userAddr;
 
-let provider, signer, contract, address;
+// Create Sparks Effect
+function createSparks() {
+  const sparks = document.getElementById('sparks');
+  sparks.classList.remove('hidden');
+  sparks.innerHTML = '';
+  for (let i = 0; i < 20; i++) {
+    const sparkle = document.createElement('div');
+    sparkle.className = 'sparkle';
+    sparkle.style.left = Math.random() * 100 + '%';
+    sparkle.style.top = Math.random() * 100 + '%';
+    sparkle.style.animationDelay = Math.random() * 2 + 's';
+    sparks.appendChild(sparkle);
+  }
+  setTimeout(() => sparks.classList.add('hidden'), 2000);
+}
 
-// Force Monad Network
 async function switchToMonad() {
   try {
-    await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x8f' }] });
+    await ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: MONAD.chainId }] });
   } catch (e) {
     if (e.code === 4902) {
-      await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [MONAD] });
+      await ethereum.request({ method: 'wallet_addEthereumChain', params: [MONAD] });
     } else throw e;
   }
 }
 
-// MetaMask Connect
-document.getElementById("metamaskBtn").onclick = async () => {
-  if (!window.ethereum) return alert("MetaMask not detected");
-  document.getElementById("status").textContent = "Switching to Monad...";
+// MetaMask / Rainbow / Coinbase (Injected Providers)
+async function connectInjected(walletName) {
+  if (!window.ethereum) return alert(`${walletName} not detected!`);
+  document.getElementById("status").textContent = "Switching to Monad…";
   await switchToMonad();
   provider = new ethers.providers.Web3Provider(window.ethereum);
   await provider.send("eth_requestAccounts", []);
-  initApp();
+  createSparks();
+  await initApp();
+}
+
+// WalletConnect v2 Modal
+document.getElementById("wcBtn").onclick = async () => {
+  document.getElementById("wcModal").classList.remove("hidden");
+  // Simulate WC wallets list (in real, WC modal handles this; here for demo)
+  const wcWallets = document.getElementById("wcWallets");
+  wcWallets.innerHTML = `
+    <button class="w-full p-4 glass rounded-xl text-left hot-glow"><i class="fab fa-trustpilot text-blue-500 mr-3"></i>Trust Wallet</button>
+    <button class="w-full p-4 glass rounded-xl text-left hot-glow"><i class="fas fa-mobile-alt text-green-500 mr-3"></i>Argent</button>
+  `;
 };
 
-// WalletConnect v2
-let wcProvider;
-document.getElementById("walletconnectBtn").onclick = async () => {
-  const modal = new WalletConnectModal.Modal({
-    projectId: "YOUR_PROJECT_ID_IF_YOU_WANT", // optional but recommended
-    chains: [143],
-    themeMode: "dark",
-    walletConnectVersion: 2
-  });
-  const session = await modal.connect({ requiredNamespaces: { eip155: { chains: ['eip155:143'], methods: ['eth_sendTransaction','personal_sign'], events: ['chainChanged','accountsChanged'] }}});
-  wcProvider = new ethers.providers.Web3Provider(new WalletConnectModal.EthereumProvider(session));
-  provider = wcProvider;
-  initApp();
+document.getElementById("closeWcModal").onclick = () => {
+  document.getElementById("wcModal").classList.add("hidden");
 };
+
+// Button Listeners
+document.getElementById("metamaskBtn").onclick = () => connectInjected("MetaMask");
+document.getElementById("rainbowBtn").onclick = () => connectInjected("Rainbow");
+document.getElementById("coinbaseBtn").onclick = () => connectInjected("Coinbase");
+
+// Full WC Connect (with modal simulation)
+document.getElementById("wcWallets").addEventListener('click', async (e) => {
+  if (e.target.closest('button')) {
+    const modal = new WalletConnectModal.Modal({
+      projectId: "c4e1a1b0a9e8d2f1c3b4e5f678901234", // dummy
+      themeMode: "light",
+      themeVariables: { '--wcm-z-index': '9999' }
+    });
+    try {
+      const session = await modal.connect({
+        requiredNamespaces: { eip155: { chains: ['eip155:143'], methods: ['eth_sendTransaction','personal_sign'], events: ['chainChanged','accountsChanged'] }}
+      });
+      const wcProvider = new ethers.providers.Web3Provider(new WalletConnectModal.EthereumProvider(session));
+      provider = wcProvider;
+      createSparks();
+      await initApp();
+      document.getElementById("wcModal").classList.add("hidden");
+    } catch { document.getElementById("status").textContent = "Cancelled"; }
+  }
+});
 
 async function initApp() {
   signer = provider.getSigner();
-  address = await signer.getAddress();
+  userAddr = await signer.getAddress();
   contract = new ethers.Contract(CONTRACT, ABI, signer);
 
-  document.getElementById("walletAddr").textContent = address.slice(0,10)+"..."+address.slice(-8);
+  document.getElementById("address").textContent = userAddr.slice(0,10) + "..." + userAddr.slice(-8);
   document.getElementById("connectCard").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
 
   refresh();
-  setInterval(refresh, 7000);
+  setInterval(refresh, 8000);
+
+  document.getElementById("disconnectBtn").onclick = () => location.reload();
 }
 
 async function refresh() {
-  const bal = await contract.balances(address);
+  const bal = await contract.balances(userAddr);
   const total = await contract.totalDeposited();
-  const f = n => parseFloat(ethers.utils.formatEther(n)).toFixed(4);
-  document.getElementById("userBal").textContent = f(bal);
-  document.getElementById("exitBal").textContent = f(bal);
-  document.getElementById("totalLocked").textContent = f(total);
+  const fmt = n => parseFloat(ethers.utils.formatEther(n)).toFixed(4);
+  document.getElementById("userBal").textContent = fmt(bal);
+  document.getElementById("exitBal").textContent = fmt(bal);
+  document.getElementById("totalLocked").textContent = fmt(total);
 }
 
 document.getElementById("depositBtn").onclick = async () => {
-  const amt = document.getElementById("amount").value;
+  const amt = document.getElementById("amount").value.trim();
   if (!amt || amt <= 0) return alert("Enter amount");
-  const tx = await contract.deposit({ value: ethers.utils.parseEther(amt) });
-  document.getElementById("status").textContent = "Depositing...";
-  await tx.wait();
-  alert(`Deposited ${amt} MON`);
-  refresh();
+  try {
+    const tx = await contract.deposit({ value: ethers.utils.parseEther(amt) });
+    document.getElementById("status").textContent = "Depositing…";
+    await tx.wait();
+    alert(`Deposited ${amt} MON`);
+    refresh();
+  } catch (e) { alert("Failed: " + e.message); }
 };
 
 document.getElementById("exitBtn").onclick = async () => {
-  const bal = await contract.balances(address);
-  if (bal.eq(0)) return alert("Nothing to exit");
-  const tx = await contract.exit();
-  await tx.wait();
-  alert("EXITED — ALL MON RETURNED");
-  refresh();
+  const bal = await contract.balances(userAddr);
+  if (bal.eq(0)) return alert("Nothing to withdraw");
+  try {
+    const tx = await contract.exit();
+    await tx.wait();
+    alert("SUCCESS — ALL MON RETURNED");
+    refresh();
+  } catch (e) { alert("Failed: " + e.message); }
 };
 </script>
 </body>
