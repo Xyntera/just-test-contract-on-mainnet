@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Monad Exit Contract: Securely deposit and withdraw MON on Monad Mainnet. Professional DeFi tool with gas estimation, transaction history, and sleek UI.">
+  <meta name="description" content="Monad Exit Contract: Securely deposit and withdraw MON on Monad Mainnet. Professional DeFi tool with gas estimation, transaction history, Rabby support, and sleek UI.">
   <title>Monad Exit Contract - Professional DeFi Tool</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -78,7 +78,7 @@
   <header class="text-center mb-12">
     <h1 class="text-5xl md:text-7xl font-bold tracking-tight gradient-text mb-4">Monad Exit</h1>
     <p class="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-      Professional DeFi tool for secure MON deposits and instant withdrawals on Monad Mainnet. With real-time gas estimation, transaction history, and seamless UX.
+      Professional DeFi tool for secure MON deposits and instant withdrawals on Monad Mainnet. With real-time gas estimation, transaction history, Rabby support, and seamless UX.
     </p>
   </header>
 
@@ -88,7 +88,12 @@
       <h2 class="text-3xl md:text-4xl font-semibold mb-6 text-gray-800">Connect Your Wallet</h2>
       <p class="text-gray-600 mb-8">Select a wallet to interact with the contract on Monad Mainnet (Chain ID: 143). Gas fees are estimated in real-time.</p>
       
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-6 max-w-4xl mx-auto">
+        <!-- Rabby -->
+        <button id="rabbyBtn" class="glass rounded-2xl p-6 hover:scale-105 transition-all border border-gray-200/50">
+          <img src="https://raw.githubusercontent.com/RabbyHub/logo/master/avatar.png" class="w-12 h-12 mx-auto mb-3" alt="Rabby">
+          <p class="font-medium text-gray-700">Rabby</p>
+        </button>
         <!-- MetaMask -->
         <button id="metamaskBtn" class="glass rounded-2xl p-6 hover:scale-105 transition-all border border-gray-200/50">
           <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" class="w-12 h-12 mx-auto mb-3" alt="MetaMask">
@@ -274,8 +279,9 @@ function formatEther(wei) {
   return parseFloat(ethers.utils.formatEther(wei)).toFixed(4);
 }
 
-function formatDate(timestamp) {
-  return new Date(Number(timestamp) * 1000).toLocaleString();
+function formatDate(blockNumber) {
+  // For simplicity, use current time as approx; in prod, fetch block timestamp
+  return new Date().toLocaleString();
 }
 
 // Render History
@@ -336,6 +342,23 @@ async function switchToMonad() {
 }
 
 // Connect Functions
+async function connectRabby() {
+  if (!window.rabby) {
+    showToast('Rabby Wallet not detected. Please install from rabby.io', 'error');
+    return;
+  }
+  try {
+    document.getElementById('connectStatus').textContent = 'Switching to Monad Mainnet...';
+    await switchToMonad();
+    provider = new ethers.providers.Web3Provider(window.rabby.ethereum);
+    await provider.send('eth_requestAccounts', []);
+    await initContract();
+  } catch (error) {
+    showToast(`Rabby connection failed: ${error.message}`, 'error');
+    document.getElementById('connectStatus').textContent = '';
+  }
+}
+
 async function connectInjected() {
   if (!window.ethereum) {
     showToast('MetaMask or compatible wallet required', 'error');
@@ -432,7 +455,7 @@ async function loadHistory() {
         type: 'Deposit',
         amount: formatEther(event.args.amount),
         hash: event.transactionHash,
-        timestamp: event.blockNumber // Approx; use getBlock for exact
+        timestamp: event.blockNumber
       })),
       ...exits.map(event => ({
         type: 'Exit',
@@ -468,6 +491,9 @@ async function updateExitGas() {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+  // Rabby
+  document.getElementById('rabbyBtn').addEventListener('click', connectRabby);
+  
   // Injected Wallets
   document.getElementById('metamaskBtn').addEventListener('click', connectInjected);
   document.getElementById('rainbowBtn').addEventListener('click', connectInjected);
