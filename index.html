@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Monad Exit Contract: Securely deposit and withdraw MON on Monad Mainnet. Professional DeFi tool with gas estimation, transaction history, Rabby support, and sleek UI.">
+  <meta name="description" content="Monad Exit Contract: Securely deposit and withdraw MON on Monad Mainnet. Professional DeFi tool with gas estimation, transaction history, Rabby support, and seamless UX.">
   <title>Monad Exit Contract - Professional DeFi Tool</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -67,6 +67,7 @@
     .history-item { animation: fadeInUp 0.5s ease forwards; opacity: 0; transform: translateY(20px); }
     @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
     .history-item:nth-child(even) { background: rgba(255, 255, 255, 0.05); }
+    .error-msg { color: #ef4444; font-size: 0.875rem; }
   </style>
 </head>
 <body class="px-4 py-8 md:py-12">
@@ -91,7 +92,7 @@
       <div class="grid grid-cols-2 md:grid-cols-5 gap-6 max-w-4xl mx-auto">
         <!-- Rabby -->
         <button id="rabbyBtn" class="glass rounded-2xl p-6 hover:scale-105 transition-all border border-gray-200/50">
-          <img src="https://raw.githubusercontent.com/RabbyHub/logo/master/avatar.png" class="w-12 h-12 mx-auto mb-3" alt="Rabby">
+          <img src="https://raw.githubusercontent.com/RabbyHub/logo/master/avatar.png" class="w-12 h-12 mx-auto mb-3" alt="Rabby" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEiIGhlaWdodD0iNTEiIHZpZXdCb3g9IjAgMCA1MSA1MSIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUuNSIgY3k9IjI1LjUiIHI9IjI1LjUiIGZpbGw9IiM2QjczRkIiLz4KPHN2ZyB4PSI0IiB5PSI0IiB3aWR0aD0iNDMiIGhlaWdodD0iNDMiIHZpZXdCb3g9IjAgMCA0MyA0MyIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjEuNSIgY3k9IjIxLjUiIHI9IjIxLjUiIHRyYW5zZm9ybT0icm90YXRlKDkwKSIgZmlsbD0iI0ZGRkZGRiIvPgo8L3N2Zz4KPC9zdmc+'">
           <p class="font-medium text-gray-700">Rabby</p>
         </button>
         <!-- MetaMask -->
@@ -117,6 +118,7 @@
       </div>
 
       <p id="connectStatus" class="mt-6 text-sm text-gray-500"></p>
+      <div id="connectError" class="error-msg hidden mt-2"></div>
     </div>
   </section>
 
@@ -194,6 +196,7 @@
       <h3 class="text-3xl font-bold gradient-text mb-6 flex items-center justify-center">
         <i class="fas fa-history mr-3"></i> Transaction History
       </h3>
+      <div id="historyLoading" class="text-center text-gray-500 mb-4 hidden">Loading history...</div>
       <div class="overflow-x-auto">
         <table class="w-full text-sm text-left text-gray-600">
           <thead class="text-xs uppercase bg-gray-50/50">
@@ -226,7 +229,7 @@
   </main>
 
 <script>
-// Configuration
+// Configuration - SAME CONTRACT
 const CONTRACT_ADDRESS = "0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3";
 const ABI = [
   "function deposit() payable",
@@ -261,17 +264,19 @@ function showToast(message, type = 'success') {
 
 function showLoading(buttonId, show = true) {
   const btn = document.getElementById(buttonId);
+  if (!btn) return;
   const spinner = btn.querySelector('.spinner');
   if (show) {
     btn.classList.add('loading');
-    spinner.classList.remove('hidden');
+    if (spinner) spinner.classList.remove('hidden');
   } else {
     btn.classList.remove('loading');
-    spinner.classList.add('hidden');
+    if (spinner) spinner.classList.add('hidden');
   }
 }
 
 function copyAddress() {
+  if (!userAddress) return;
   navigator.clipboard.writeText(userAddress).then(() => showToast('Address copied to clipboard!'));
 }
 
@@ -279,9 +284,8 @@ function formatEther(wei) {
   return parseFloat(ethers.utils.formatEther(wei)).toFixed(4);
 }
 
-function formatDate(blockNumber) {
-  // For simplicity, use current time as approx; in prod, fetch block timestamp
-  return new Date().toLocaleString();
+function formatDate(timestamp) {
+  return new Date(Number(timestamp) * 1000).toLocaleString();
 }
 
 // Render History
@@ -294,7 +298,7 @@ function renderHistory() {
     return;
   }
   noHistory.classList.add('hidden');
-  history.slice(-10).reverse().forEach((tx, index) => { // Last 10
+  history.slice(-10).reverse().forEach((tx, index) => {
     const row = document.createElement('tr');
     row.className = `history-item ${index % 2 === 0 ? 'bg-white/20' : ''}`;
     row.innerHTML = `
@@ -313,12 +317,13 @@ async function estimateGasAndFee(call, value = 0) {
   try {
     const gasEstimate = await call.estimateGas({ value });
     const feeData = await provider.getFeeData();
-    const gasPrice = feeData.gasPrice || 0;
+    if (!feeData.gasPrice) return 'N/A';
+    const gasPrice = feeData.gasPrice;
     const feeWei = gasEstimate.mul(gasPrice);
     return formatEther(feeWei);
   } catch (error) {
     console.error('Gas estimation failed:', error);
-    return 'Error';
+    return 'N/A';
   }
 }
 
@@ -343,34 +348,40 @@ async function switchToMonad() {
 
 // Connect Functions
 async function connectRabby() {
-  if (!window.rabby) {
-    showToast('Rabby Wallet not detected. Please install from rabby.io', 'error');
+  const ethProvider = window.rabby ? window.rabby.ethereum : window.ethereum;
+  if (!ethProvider) {
+    document.getElementById('connectError').textContent = 'Rabby not detected. Install from rabby.io or use MetaMask.';
+    document.getElementById('connectError').classList.remove('hidden');
     return;
   }
   try {
     document.getElementById('connectStatus').textContent = 'Switching to Monad Mainnet...';
     await switchToMonad();
-    provider = new ethers.providers.Web3Provider(window.rabby.ethereum);
+    provider = new ethers.providers.Web3Provider(ethProvider);
     await provider.send('eth_requestAccounts', []);
     await initContract();
   } catch (error) {
+    console.error('Rabby connection error:', error);
     showToast(`Rabby connection failed: ${error.message}`, 'error');
     document.getElementById('connectStatus').textContent = '';
   }
 }
 
 async function connectInjected() {
-  if (!window.ethereum) {
-    showToast('MetaMask or compatible wallet required', 'error');
+  const ethProvider = window.ethereum;
+  if (!ethProvider) {
+    document.getElementById('connectError').textContent = 'No Ethereum provider detected. Install MetaMask or Rabby.';
+    document.getElementById('connectError').classList.remove('hidden');
     return;
   }
   try {
     document.getElementById('connectStatus').textContent = 'Switching to Monad Mainnet...';
     await switchToMonad();
-    provider = new ethers.providers.Web3Provider(window.ethereum);
+    provider = new ethers.providers.Web3Provider(ethProvider);
     await provider.send('eth_requestAccounts', []);
     await initContract();
   } catch (error) {
+    console.error('Injected connection error:', error);
     showToast(`Connection failed: ${error.message}`, 'error');
     document.getElementById('connectStatus').textContent = '';
   }
@@ -379,7 +390,7 @@ async function connectInjected() {
 async function connectWalletConnect() {
   const { Modal } = WalletConnectModal;
   const modal = new Modal({
-    projectId: 'YOUR_WALLETCONNECT_PROJECT_ID', // Replace with real ID from walletconnect.com
+    projectId: 'c4e1a1b0a9e8d2f1c3b4e5f678901234', // Dummy for testing; replace with real for prod
     themeMode: 'light'
   });
   try {
@@ -396,31 +407,37 @@ async function connectWalletConnect() {
     await initContract();
     modal.closeModal();
   } catch (error) {
-    showToast('WalletConnect failed', 'error');
+    console.error('WalletConnect error:', error);
+    showToast('WalletConnect failed: ' + error.message, 'error');
   }
 }
 
 // Init Contract
 async function initContract() {
-  signer = provider.getSigner();
-  userAddress = await signer.getAddress();
-  contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-  
-  document.getElementById('walletAddress').textContent = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
-  document.getElementById('connectSection').classList.add('hidden');
-  document.getElementById('appSection').classList.remove('hidden');
-  
-  await loadBalances();
-  await loadHistory();
-  setInterval(loadBalances, 10000);
-  setInterval(loadHistory, 30000); // Refresh history every 30s
-  
-  // Initial gas estimates
-  updateDepositGas();
-  updateExitGas();
-  
-  showToast('Wallet connected successfully!');
-  document.getElementById('connectStatus').textContent = '';
+  try {
+    signer = provider.getSigner();
+    userAddress = await signer.getAddress();
+    contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+    
+    document.getElementById('walletAddress').textContent = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+    document.getElementById('connectSection').classList.add('hidden');
+    document.getElementById('appSection').classList.remove('hidden');
+    document.getElementById('connectError').classList.add('hidden');
+    
+    await loadBalances();
+    await loadHistory();
+    setInterval(loadBalances, 10000);
+    setInterval(loadHistory, 30000);
+    
+    updateDepositGas();
+    updateExitGas();
+    
+    showToast('Wallet connected successfully!');
+    document.getElementById('connectStatus').textContent = '';
+  } catch (error) {
+    console.error('Init contract error:', error);
+    showToast('Contract initialization failed: ' + error.message, 'error');
+  }
 }
 
 // Load Balances
@@ -439,35 +456,39 @@ async function loadBalances() {
   }
 }
 
-// Load Transaction History
+// Load Transaction History (Fixed: Fetch real timestamps)
 async function loadHistory() {
+  const loadingEl = document.getElementById('historyLoading');
+  loadingEl.classList.remove('hidden');
   try {
     const filterDeposited = contract.filters.Deposited(userAddress);
     const filterExited = contract.filters.Exited(userAddress);
     
     const [deposits, exits] = await Promise.all([
-      contract.queryFilter(filterDeposited, -10000), // Last 10000 blocks
+      contract.queryFilter(filterDeposited, -10000),
       contract.queryFilter(filterExited, -10000)
     ]);
     
-    history = [
-      ...deposits.map(event => ({
-        type: 'Deposit',
-        amount: formatEther(event.args.amount),
-        hash: event.transactionHash,
-        timestamp: event.blockNumber
-      })),
-      ...exits.map(event => ({
-        type: 'Exit',
-        amount: formatEther(event.args.amount),
-        hash: event.transactionHash,
-        timestamp: event.blockNumber
-      }))
-    ].sort((a, b) => b.timestamp - a.timestamp);
+    // Fetch timestamps for each event
+    const allEvents = [...deposits, ...exits];
+    const timestamps = await Promise.all(allEvents.map(async (event) => {
+      const block = await provider.getBlock(event.blockNumber);
+      return block.timestamp;
+    }));
+    
+    history = allEvents.map((event, index) => ({
+      type: event.event === 'Deposited' ? 'Deposit' : 'Exit',
+      amount: formatEther(event.args.amount),
+      hash: event.transactionHash,
+      timestamp: timestamps[index]
+    })).sort((a, b) => b.timestamp - a.timestamp);
     
     renderHistory();
   } catch (error) {
     console.error('History load error:', error);
+    showToast('Failed to load history: ' + error.message, 'error');
+  } finally {
+    loadingEl.classList.add('hidden');
   }
 }
 
@@ -475,18 +496,26 @@ async function loadHistory() {
 async function updateDepositGas() {
   const amountInput = document.getElementById('depositAmount');
   if (amountInput.value > 0) {
-    const wei = ethers.utils.parseEther(amountInput.value);
-    const fee = await estimateGasAndFee(contract.deposit, wei);
-    document.getElementById('depositGasFee').textContent = fee;
-    document.getElementById('depositGas').classList.remove('hidden');
+    try {
+      const wei = ethers.utils.parseEther(amountInput.value);
+      const fee = await estimateGasAndFee(contract.deposit, wei);
+      document.getElementById('depositGasFee').textContent = fee;
+      document.getElementById('depositGas').classList.remove('hidden');
+    } catch (error) {
+      console.error('Deposit gas error:', error);
+    }
   } else {
     document.getElementById('depositGas').classList.add('hidden');
   }
 }
 
 async function updateExitGas() {
-  const fee = await estimateGasAndFee(contract.exit);
-  document.getElementById('exitGasFee').textContent = fee;
+  try {
+    const fee = await estimateGasAndFee(contract.exit);
+    document.getElementById('exitGasFee').textContent = fee;
+  } catch (error) {
+    console.error('Exit gas error:', error);
+  }
 }
 
 // Event Listeners
@@ -503,9 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('wcBtn').addEventListener('click', connectWalletConnect);
   
   // Disconnect
-  document.getElementById('disconnectBtn').addEventListener('click', () => {
-    location.reload();
-  });
+  document.getElementById('disconnectBtn').addEventListener('click', () => location.reload());
   
   // Deposit Input Change
   document.getElementById('depositAmount').addEventListener('input', updateDepositGas);
@@ -526,8 +553,9 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('depositAmount').value = '';
       loadBalances();
       updateDepositGas();
-      loadHistory(); // Refresh history
+      loadHistory();
     } catch (error) {
+      console.error('Deposit error:', error);
       showToast(`Deposit failed: ${error.message}`, 'error');
     } finally {
       showLoading('depositBtn', false);
@@ -548,8 +576,9 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Withdrawal successful!');
       loadBalances();
       updateExitGas();
-      loadHistory(); // Refresh history
+      loadHistory();
     } catch (error) {
+      console.error('Exit error:', error);
       showToast(`Withdrawal failed: ${error.message}`, 'error');
     } finally {
       showLoading('exitBtn', false);
@@ -558,7 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Auto-connect if possible
   if (window.ethereum && window.ethereum.selectedAddress) {
-    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' }).catch(() => null);
     if (chainId === MONAD_CHAIN.chainId) {
       connectInjected();
     }
