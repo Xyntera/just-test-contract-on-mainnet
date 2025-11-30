@@ -1,291 +1,374 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MONAD EXIT • Ultimate Wallet Connect</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Monad Exit Contract: Securely deposit and withdraw MON on Monad Mainnet. Professional DeFi tool for instant exits.">
+  <title>Monad Exit Contract - Professional DeFi Tool</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script src="https://unpkg.com/@walletconnect/modal@2.6.2/dist/index.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     :root {
-      --hot-pink: #ff2a6d;
-      --soft-white: #fafafa;
-      --glass: rgba(255,255,255,0.08);
-      --border: rgba(255,255,255,0.15);
+      --primary: #ff2a6d;
+      --secondary: #ff6b9d;
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --border-color: rgba(255, 255, 255, 0.2);
+      --shadow: 0 10px 40px rgba(255, 42, 109, 0.15);
     }
+    * { font-family: 'Inter', sans-serif; }
     body {
       background: linear-gradient(135deg, #ffeef8 0%, #fff5fb 50%, #fad0e5 100%);
-      font-family: 'Inter', sans-serif;
+      color: #333;
       min-height: 100vh;
     }
     .glass {
-      background: var(--glass);
+      background: var(--glass-bg);
       backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--border);
-      box-shadow: 0 8px 32px rgba(255,45,105,0.12);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow);
     }
-    .hot-glow { box-shadow: 0 0 40px rgba(255,42,109,0.4); }
-    .pulse-pink { animation: pulsePink 4s infinite alternate; }
-    @keyframes pulsePink { from { box-shadow: 0 0 20px rgba(255,42,109,0.3); } to { box-shadow: 0 0 60px rgba(255,42,109,0.6); } }
-    .text-gradient { background: linear-gradient(to right, #ff2a6d, #ff6b9d); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .wallet-hover { transition: all 0.3s ease; }
-    .wallet-hover:hover { transform: scale(1.05) rotate(5deg); }
-    .wallet-hover img { transition: transform 0.3s ease; }
-    .wallet-hover:hover img { transform: scale(1.1) rotateY(180deg); }
-    .modal-overlay { background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); }
-    .sparkle { position: absolute; width: 4px; height: 4px; background: var(--hot-pink); border-radius: 50%; animation: sparkle 2s infinite; }
-    @keyframes sparkle { 0%, 100% { opacity: 0; transform: scale(0); } 50% { opacity: 1; transform: scale(1); } }
+    .gradient-text {
+      background: linear-gradient(to right, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .btn-primary {
+      background: linear-gradient(to right, var(--primary), var(--secondary));
+      color: white;
+      transition: all 0.3s ease;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(255, 42, 109, 0.3); }
+    .loading { opacity: 0.7; pointer-events: none; }
+    .spinner { border: 2px solid #f3f3f3; border-top: 2px solid var(--primary); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .toast { position: fixed; top: 20px; right: 20px; z-index: 1000; padding: 16px 24px; border-radius: 12px; color: white; font-weight: 500; }
+    .toast.success { background: #10b981; }
+    .toast.error { background: #ef4444; }
   </style>
 </head>
-<body class="text-gray-800">
+<body class="px-4 py-8 md:py-12">
 
-  <!-- Floating Sparks -->
-  <div id="sparks" class="fixed inset-0 pointer-events-none z-50 hidden"></div>
+  <!-- Toast Container -->
+  <div id="toastContainer"></div>
 
-  <div class="min-h-screen px-4 py-8 md:py-12">
+  <!-- Header -->
+  <header class="text-center mb-12">
+    <h1 class="text-5xl md:text-7xl font-bold tracking-tight gradient-text mb-4">Monad Exit</h1>
+    <p class="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
+      Professional DeFi tool for secure MON deposits and instant withdrawals on Monad Mainnet. Built with security and speed in mind.
+    </p>
+  </header>
 
-    <!-- HEADER -->
-    <header class="text-center mb-12">
-      <h1 class="text-6xl md:text-8xl font-black tracking-tight text-gradient mb-4">
-        MONAD EXIT
-      </h1>
-      <p class="text-xl md:text-2xl font-light text-pink-700 opacity-90">
-        Deposit MON • Exit anytime • Zero trust • Ultra fast
+  <!-- Wallet Connect Section -->
+  <section id="connectSection" class="max-w-4xl mx-auto mb-16">
+    <div class="glass rounded-3xl p-8 md:p-12 text-center">
+      <h2 class="text-3xl md:text-4xl font-semibold mb-6 text-gray-800">Connect Your Wallet</h2>
+      <p class="text-gray-600 mb-8">Select a wallet to interact with the contract on Monad Mainnet (Chain ID: 143).</p>
+      
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
+        <!-- MetaMask -->
+        <button id="metamaskBtn" class="glass rounded-2xl p-6 hover:scale-105 transition-all border border-gray-200">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" class="w-12 h-12 mx-auto mb-3" alt="MetaMask">
+          <p class="font-medium">MetaMask</p>
+        </button>
+        <!-- WalletConnect -->
+        <button id="wcBtn" class="glass rounded-2xl p-6 hover:scale-105 transition-all border border-gray-200">
+          <i class="fab fa-wallet text-2xl text-gray-700 mx-auto mb-3 block"></i>
+          <p class="font-medium">WalletConnect</p>
+        </button>
+        <!-- Rainbow -->
+        <button id="rainbowBtn" class="glass rounded-2xl p-6 hover:scale-105 transition-all border border-gray-200">
+          <i class="fas fa-palette text-2xl text-indigo-500 mx-auto mb-3 block"></i>
+          <p class="font-medium">Rainbow</p>
+        </button>
+        <!-- Coinbase -->
+        <button id="coinbaseBtn" class="glass rounded-2xl p-6 hover:scale-105 transition-all border border-gray-200">
+          <img src="https://www.coinbase.com/assets/app/favicon-32x32.png" class="w-10 h-10 mx-auto mb-3" alt="Coinbase">
+          <p class="font-medium">Coinbase</p>
+        </button>
+      </div>
+
+      <p id="connectStatus" class="mt-6 text-sm text-gray-500"></p>
+    </div>
+  </section>
+
+  <!-- Main App -->
+  <main id="appSection" class="hidden max-w-6xl mx-auto">
+    
+    <!-- Connected Wallet Info -->
+    <div class="glass rounded-2xl p-6 mb-10 text-center">
+      <p class="text-gray-600 mb-2">Connected Address</p>
+      <div class="flex items-center justify-center space-x-2 mb-4">
+        <p id="walletAddress" class="text-xl font-mono break-all bg-gray-100 px-3 py-1 rounded-lg"></p>
+        <button onclick="copyAddress()" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-copy"></i>
+        </button>
+      </div>
+      <button id="disconnectBtn" class="text-sm text-gray-500 underline hover:text-gray-700">Disconnect</button>
+    </div>
+
+    <!-- Action Cards -->
+    <div class="grid lg:grid-cols-2 gap-8 mb-16">
+      
+      <!-- Deposit Card -->
+      <div class="glass rounded-3xl p-8 md:p-12">
+        <h3 class="text-4xl font-bold gradient-text mb-6">Deposit MON</h3>
+        <div class="mb-6">
+          <input 
+            id="depositAmount" 
+            type="number" 
+            step="0.0001" 
+            min="0.0001"
+            placeholder="0.00" 
+            class="w-full bg-white/20 border border-gray-300 rounded-2xl px-6 py-4 text-xl text-center focus:outline-none focus:ring-2 focus:ring-var(--primary)"
+          >
+        </div>
+        <button id="depositBtn" class="w-full btn-primary py-4 rounded-2xl text-lg font-semibold mb-6 flex items-center justify-center space-x-2">
+          <span>Deposit</span>
+          <span id="depositSpinner" class="spinner hidden"></span>
+        </button>
+        <p class="text-center text-gray-600">
+          Your Balance: <span id="userBalance" class="text-2xl font-bold gradient-text">0.0000</span> MON
+        </p>
+      </div>
+
+      <!-- Exit Card -->
+      <div class="glass rounded-3xl p-8 md:p-12">
+        <h3 class="text-4xl font-bold gradient-text mb-6">Exit (Withdraw)</h3>
+        <button id="exitBtn" class="w-full btn-primary py-4 rounded-2xl text-lg font-semibold mb-6 flex items-center justify-center space-x-2">
+          <span>Withdraw All</span>
+          <span id="exitSpinner" class="spinner hidden"></span>
+        </button>
+        <p class="text-center text-gray-600">
+          Withdraw Amount: <span id="exitAmount" class="text-2xl font-bold gradient-text">0.0000</span> MON
+        </p>
+      </div>
+    </div>
+
+    <!-- Total Locked -->
+    <div class="glass rounded-3xl p-8 md:p-12 text-center mb-16">
+      <h3 class="text-2xl font-semibold text-gray-800 mb-4">Total MON Locked in Contract</h3>
+      <p id="totalDeposited" class="text-6xl font-bold gradient-text">0.0000</p>
+      <p class="text-sm text-gray-500 mt-2">Real-time on-chain data</p>
+    </div>
+
+    <!-- Contract Details -->
+    <footer class="text-center text-gray-500 text-sm">
+      <p>Contract Address: <code class="font-mono bg-gray-100 px-2 py-1 rounded text-gray-800">0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3</code></p>
+      <p class="mt-2">
+        <a href="https://monad-vision.vercel.app/address/0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3" target="_blank" class="underline hover:text-gray-700">
+          View on Monad Explorer <i class="fas fa-external-link-alt ml-1"></i>
+        </a>
       </p>
-    </header>
-
-    <!-- WALLET CONNECT CARD (Top center) -->
-    <div id="connectCard" class="max-w-xl mx-auto mb-16">
-      <div class="glass rounded-3xl p-10 md:p-14 text-center hot-glow pulse-pink transition-all">
-        <h2 class="text-4xl md:text-5xl font-bold mb-6 text-gray-800">Connect Wallet</h2>
-        <p class="text-lg text-pink-700 mb-10">This dApp runs only on <span class="font-bold">Monad Mainnet</span></p>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-4xl mx-auto">
-          <!-- MetaMask -->
-          <button id="metamaskBtn" class="glass rounded-2xl p-6 wallet-hover hot-glow">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" class="w-16 h-16 mx-auto mb-3" alt="MetaMask"/>
-            <p class="text-xl font-bold">MetaMask</p>
-          </button>
-          <!-- WalletConnect -->
-          <button id="wcBtn" class="glass rounded-2xl p-6 wallet-hover hot-glow">
-            <img src="https://walletconnect.com/_next/static/media/logo.1a2a2b3c.svg" class="w-12 h-12 mx-auto mb-3 filter brightness-0 invert" alt="WC"/>
-            <p class="text-xl font-bold">WalletConnect</p>
-          </button>
-          <!-- Rainbow -->
-          <button id="rainbowBtn" class="glass rounded-2xl p-6 wallet-hover hot-glow">
-            <i class="fas fa-rainbow text-4xl text-indigo-500 mx-auto mb-3"></i>
-            <p class="text-xl font-bold">Rainbow</p>
-          </button>
-          <!-- Coinbase -->
-          <button id="coinbaseBtn" class="glass rounded-2xl p-6 wallet-hover hot-glow">
-            <img src="https://www.coinbase.com/assets/app/favicon-32x32.png" class="w-12 h-12 mx-auto mb-3" alt="Coinbase"/>
-            <p class="text-xl font-bold">Coinbase</p>
-          </button>
-        </div>
-
-        <p id="status" class="mt-8 text-pink-600 font-medium text-lg"></p>
-      </div>
-    </div>
-
-    <!-- MAIN APP (Hidden until connected) -->
-    <div id="app" class="hidden max-w-6xl mx-auto">
-
-      <!-- Connected Address Bar -->
-      <div class="glass rounded-2xl p-6 mb-10 text-center hot-glow">
-        <p class="text-lg text-pink-700">Connected</p>
-        <p id="address" class="text-2xl md:text-3xl font-bold text-gradient mt-2 break-all"></p>
-        <button id="disconnectBtn" class="mt-4 text-sm text-pink-600 underline">Disconnect</button>
-      </div>
-
-      <div class="grid lg:grid-cols-2 gap-10 mb-16">
-
-        <!-- DEPOSIT CARD -->
-        <div class="glass rounded-3xl p-10 md:p-14 hot-glow pulse-pink">
-          <h3 class="text-5xl md:text-6xl font-black text-gradient mb-8">DEPOSIT</h3>
-          <input id="amount" type="text" placeholder="69.420" class="w-full bg-white/20 border border-pink-300/30 rounded-2xl px-8 py-6 text-3xl text-center focus:outline-none focus:ring-4 focus:ring-pink-400 placeholder-pink-400/50" />
-          <button id="depositBtn" class="mt-10 w-full py-6 text-2xl font-bold rounded-2xl bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-400 hover:to-pink-500 text-white shadow-xl transform hover:scale-105 active:scale-100 transition">
-            DEPOSIT MON
-          </button>
-          <div class="mt-10 text-center">
-            <p class="text-xl text-pink-700">Your Balance</p>
-            <p id="userBal" class="text-6xl font-black text-gradient mt-3">0</p>
-            <p class="text-lg text-pink-600">MON</p>
-          </div>
-        </div>
-
-        <!-- EXIT CARD -->
-        <div class="glass rounded-3xl p-10 md:p-14 hot-glow pulse-pink">
-          <h3 class="text-5xl md:text-6xl font-black text-gradient mb-12">EXIT</h3>
-          <button id="exitBtn" class="w-full py-10 text-4xl font-black rounded-3xl bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-400 hover:to-pink-500 text-white shadow-2xl transform hover:scale-110 active:scale-105 transition">
-            WITHDRAW EVERYTHING
-          </button>
-          <div class="mt-12 text-center">
-            <p class="text-xl text-pink-700">You Receive</p>
-            <p id="exitBal" class="text-6xl font-black text-gradient mt-3">0</p>
-            <p class="text-lg text-pink-600">MON</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Total Locked -->
-      <div class="text-center mb-20">
-        <p class="text-2xl text-pink-700 mb-4">Total MON Locked</p>
-        <p id="totalLocked" class="text-8xl font-black text-gradient">0</p>
-      </div>
-
-      <!-- Footer -->
-      <div class="text-center text-pink-700/70 text-sm">
-        Contract: <code class="text-pink-800 font-mono">0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3</code>
-        <br><br>
-        <a href="https://monad-vision.vercel.app/address/0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3" target="_blank" class="underline hover:text-pink-900">View on Explorer</a>
-      </div>
-    </div>
-  </div>
-
-  <!-- WalletConnect Modal Overlay (Injected by WC, but styled) -->
-  <div id="wcModal" class="fixed inset-0 modal-overlay hidden z-50 flex items-center justify-center p-4">
-    <div class="glass rounded-3xl p-8 max-w-md w-full max-h-[80vh] overflow-y-auto">
-      <h3 class="text-2xl font-bold text-gray-800 mb-4">Select Wallet</h3>
-      <div id="wcWallets" class="space-y-4"></div>
-      <button id="closeWcModal" class="mt-6 w-full py-3 text-pink-600 font-bold rounded-xl border border-pink-300">Cancel</button>
-    </div>
-  </div>
+      <p class="mt-4">Built with ❤️ for Monad. Audit recommended for production use.</p>
+    </footer>
+  </main>
 
 <script>
-const CONTRACT = "0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3";
-const ABI = ["function deposit() payable","function exit()","function balances(address) view returns (uint256)","function totalDeposited() view returns (uint256)"];
-const MONAD = { chainId: "0x8f", chainName: "Monad Mainnet", nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 }, rpcUrls: ["https://rpc.monad.xyz"], blockExplorerUrls: ["https://monad-vision.vercel.app"] };
+// Configuration
+const CONTRACT_ADDRESS = "0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3";
+const ABI = [
+  "function deposit() payable",
+  "function exit()",
+  "function balances(address) view returns (uint256)",
+  "function totalDeposited() view returns (uint256)"
+];
+const MONAD_CHAIN = {
+  chainId: "0x8f", // 143
+  chainName: "Monad Mainnet",
+  nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 },
+  rpcUrls: ["https://rpc.monad.xyz"],
+  blockExplorerUrls: ["https://monad-vision.vercel.app"]
+};
 
-let provider, signer, contract, userAddr;
+let provider, signer, contract, userAddress;
 
-// Create Sparks Effect
-function createSparks() {
-  const sparks = document.getElementById('sparks');
-  sparks.classList.remove('hidden');
-  sparks.innerHTML = '';
-  for (let i = 0; i < 20; i++) {
-    const sparkle = document.createElement('div');
-    sparkle.className = 'sparkle';
-    sparkle.style.left = Math.random() * 100 + '%';
-    sparkle.style.top = Math.random() * 100 + '%';
-    sparkle.style.animationDelay = Math.random() * 2 + 's';
-    sparks.appendChild(sparkle);
-  }
-  setTimeout(() => sparks.classList.add('hidden'), 2000);
+// Utility Functions
+function showToast(message, type = 'success') {
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  document.getElementById('toastContainer').appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
 }
 
+function showLoading(buttonId, show = true) {
+  const btn = document.getElementById(buttonId);
+  const spinner = btn.querySelector('.spinner');
+  if (show) {
+    btn.classList.add('loading');
+    spinner.classList.remove('hidden');
+  } else {
+    btn.classList.remove('loading');
+    spinner.classList.add('hidden');
+  }
+}
+
+function copyAddress() {
+  navigator.clipboard.writeText(userAddress).then(() => showToast('Address copied!'));
+}
+
+// Network Switch
 async function switchToMonad() {
   try {
-    await ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: MONAD.chainId }] });
-  } catch (e) {
-    if (e.code === 4902) {
-      await ethereum.request({ method: 'wallet_addEthereumChain', params: [MONAD] });
-    } else throw e;
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: MONAD_CHAIN.chainId }]
+    });
+  } catch (error) {
+    if (error.code === 4902) {
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [MONAD_CHAIN]
+      });
+    } else {
+      throw error;
+    }
   }
 }
 
-// MetaMask / Rainbow / Coinbase (Injected Providers)
-async function connectInjected(walletName) {
-  if (!window.ethereum) return alert(`${walletName} not detected!`);
-  document.getElementById("status").textContent = "Switching to Monad…";
-  await switchToMonad();
-  provider = new ethers.providers.Web3Provider(window.ethereum);
-  await provider.send("eth_requestAccounts", []);
-  createSparks();
-  await initApp();
+// Connect Functions
+async function connectInjected() {
+  if (!window.ethereum) {
+    showToast('MetaMask or compatible wallet required', 'error');
+    return;
+  }
+  try {
+    document.getElementById('connectStatus').textContent = 'Switching to Monad Mainnet...';
+    await switchToMonad();
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send('eth_requestAccounts', []);
+    await initContract();
+  } catch (error) {
+    showToast(`Connection failed: ${error.message}`, 'error');
+    document.getElementById('connectStatus').textContent = '';
+  }
 }
 
-// WalletConnect v2 Modal
-document.getElementById("wcBtn").onclick = async () => {
-  document.getElementById("wcModal").classList.remove("hidden");
-  // Simulate WC wallets list (in real, WC modal handles this; here for demo)
-  const wcWallets = document.getElementById("wcWallets");
-  wcWallets.innerHTML = `
-    <button class="w-full p-4 glass rounded-xl text-left hot-glow"><i class="fab fa-trustpilot text-blue-500 mr-3"></i>Trust Wallet</button>
-    <button class="w-full p-4 glass rounded-xl text-left hot-glow"><i class="fas fa-mobile-alt text-green-500 mr-3"></i>Argent</button>
-  `;
-};
-
-document.getElementById("closeWcModal").onclick = () => {
-  document.getElementById("wcModal").classList.add("hidden");
-};
-
-// Button Listeners
-document.getElementById("metamaskBtn").onclick = () => connectInjected("MetaMask");
-document.getElementById("rainbowBtn").onclick = () => connectInjected("Rainbow");
-document.getElementById("coinbaseBtn").onclick = () => connectInjected("Coinbase");
-
-// Full WC Connect (with modal simulation)
-document.getElementById("wcWallets").addEventListener('click', async (e) => {
-  if (e.target.closest('button')) {
-    const modal = new WalletConnectModal.Modal({
-      projectId: "c4e1a1b0a9e8d2f1c3b4e5f678901234", // dummy
-      themeMode: "light",
-      themeVariables: { '--wcm-z-index': '9999' }
+async function connectWalletConnect() {
+  const { Modal } = WalletConnectModal;
+  const modal = new Modal({
+    projectId: 'YOUR_WALLETCONNECT_PROJECT_ID', // Replace with real ID from walletconnect.com
+    themeMode: 'light'
+  });
+  try {
+    const session = await modal.connect({
+      requiredNamespaces: {
+        eip155: {
+          chains: ['eip155:143'],
+          methods: ['eth_sendTransaction', 'eth_signTypedData', 'personal_sign'],
+          events: ['chainChanged', 'accountsChanged']
+        }
+      }
     });
+    provider = new ethers.providers.Web3Provider(new WalletConnectModal.EthereumProvider(session));
+    await initContract();
+    modal.closeModal();
+  } catch (error) {
+    showToast('WalletConnect failed', 'error');
+  }
+}
+
+// Init Contract
+async function initContract() {
+  signer = provider.getSigner();
+  userAddress = await signer.getAddress();
+  contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+  
+  document.getElementById('walletAddress').textContent = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+  document.getElementById('connectSection').classList.add('hidden');
+  document.getElementById('appSection').classList.remove('hidden');
+  
+  loadBalances();
+  setInterval(loadBalances, 10000); // Refresh every 10s
+  
+  showToast('Wallet connected successfully!');
+  document.getElementById('connectStatus').textContent = '';
+}
+
+// Load Balances
+async function loadBalances() {
+  try {
+    const [userBal, exitBal, total] = await Promise.all([
+      contract.balances(userAddress),
+      contract.balances(userAddress),
+      contract.totalDeposited()
+    ]);
+    const formatEther = (wei) => parseFloat(ethers.utils.formatEther(wei)).toFixed(4);
+    
+    document.getElementById('userBalance').textContent = formatEther(userBal);
+    document.getElementById('exitAmount').textContent = formatEther(exitBal);
+    document.getElementById('totalDeposited').textContent = formatEther(total);
+  } catch (error) {
+    console.error('Balance load error:', error);
+  }
+}
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+  // Injected Wallets
+  document.getElementById('metamaskBtn').addEventListener('click', connectInjected);
+  document.getElementById('rainbowBtn').addEventListener('click', connectInjected);
+  document.getElementById('coinbaseBtn').addEventListener('click', connectInjected);
+  
+  // WalletConnect
+  document.getElementById('wcBtn').addEventListener('click', connectWalletConnect);
+  
+  // Disconnect
+  document.getElementById('disconnectBtn').addEventListener('click', () => {
+    location.reload();
+  });
+  
+  // Deposit
+  document.getElementById('depositBtn').addEventListener('click', async () => {
+    const amountStr = document.getElementById('depositAmount').value;
+    const amount = parseFloat(amountStr);
+    if (!amount || amount <= 0) {
+      showToast('Enter a valid amount > 0', 'error');
+      return;
+    }
     try {
-      const session = await modal.connect({
-        requiredNamespaces: { eip155: { chains: ['eip155:143'], methods: ['eth_sendTransaction','personal_sign'], events: ['chainChanged','accountsChanged'] }}
-      });
-      const wcProvider = new ethers.providers.Web3Provider(new WalletConnectModal.EthereumProvider(session));
-      provider = wcProvider;
-      createSparks();
-      await initApp();
-      document.getElementById("wcModal").classList.add("hidden");
-    } catch { document.getElementById("status").textContent = "Cancelled"; }
+      showLoading('depositBtn', true);
+      const tx = await contract.deposit({ value: ethers.utils.parseEther(amountStr) });
+      await tx.wait();
+      showToast(`Deposited ${amount} MON`);
+      document.getElementById('depositAmount').value = '';
+      loadBalances();
+    } catch (error) {
+      showToast(`Deposit failed: ${error.message}`, 'error');
+    } finally {
+      showLoading('depositBtn', false);
+    }
+  });
+  
+  // Exit
+  document.getElementById('exitBtn').addEventListener('click', async () => {
+    try {
+      showLoading('exitBtn', true);
+      const tx = await contract.exit();
+      await tx.wait();
+      showToast('Withdrawal successful!');
+      loadBalances();
+    } catch (error) {
+      showToast(`Withdrawal failed: ${error.message}`, 'error');
+    } finally {
+      showLoading('exitBtn', false);
+    }
+  });
+  
+  // Auto-connect if possible
+  if (window.ethereum && window.ethereum.selectedAddress) {
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    if (chainId === MONAD_CHAIN.chainId) {
+      connectInjected();
+    }
   }
 });
-
-async function initApp() {
-  signer = provider.getSigner();
-  userAddr = await signer.getAddress();
-  contract = new ethers.Contract(CONTRACT, ABI, signer);
-
-  document.getElementById("address").textContent = userAddr.slice(0,10) + "..." + userAddr.slice(-8);
-  document.getElementById("connectCard").classList.add("hidden");
-  document.getElementById("app").classList.remove("hidden");
-
-  refresh();
-  setInterval(refresh, 8000);
-
-  document.getElementById("disconnectBtn").onclick = () => location.reload();
-}
-
-async function refresh() {
-  const bal = await contract.balances(userAddr);
-  const total = await contract.totalDeposited();
-  const fmt = n => parseFloat(ethers.utils.formatEther(n)).toFixed(4);
-  document.getElementById("userBal").textContent = fmt(bal);
-  document.getElementById("exitBal").textContent = fmt(bal);
-  document.getElementById("totalLocked").textContent = fmt(total);
-}
-
-document.getElementById("depositBtn").onclick = async () => {
-  const amt = document.getElementById("amount").value.trim();
-  if (!amt || amt <= 0) return alert("Enter amount");
-  try {
-    const tx = await contract.deposit({ value: ethers.utils.parseEther(amt) });
-    document.getElementById("status").textContent = "Depositing…";
-    await tx.wait();
-    alert(`Deposited ${amt} MON`);
-    refresh();
-  } catch (e) { alert("Failed: " + e.message); }
-};
-
-document.getElementById("exitBtn").onclick = async () => {
-  const bal = await contract.balances(userAddr);
-  if (bal.eq(0)) return alert("Nothing to withdraw");
-  try {
-    const tx = await contract.exit();
-    await tx.wait();
-    alert("SUCCESS — ALL MON RETURNED");
-    refresh();
-  } catch (e) { alert("Failed: " + e.message); }
-};
 </script>
 </body>
 </html>
