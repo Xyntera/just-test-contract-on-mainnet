@@ -6,191 +6,255 @@
   <title>MONAD EXIT CONTRACT</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
   <style>
-    body { background: radial-gradient(circle at top left, #1a0033, #000000); font-family: 'Orbitron', sans-serif; }
-    .wallet-btn { transition: all 0.3s; }
-    .wallet-btn:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4); }
-    .glow-border { border: 2px solid; border-image: linear-gradient(45deg, #a855f7, #ec4899) 1; }
+    body { background: linear-gradient(135deg, #0f0529, #1a0b3d); color: white; min-height: 100vh; font-family: 'Segoe UI', sans-serif; }
+    .glow { box-shadow: 0 0 30px rgba(139, 92, 246, 0.6); }
+    .btn-glow:hover { box-shadow: 0 0 40px rgba(139, 92, 246, 0.8); }
+    .loading { opacity: 0.7; pointer-events: none; }
+    .spinner { border: 2px solid #f3f3f3; border-top: 2px solid #8b5cf6; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; margin-left: 8px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body class="flex items-center justify-center p-6">
 
-<!-- MODAL BACKDROP -->
-<div id="modalBackdrop" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-40"></div>
+<div class="w-full max-w-2xl">
 
-<!-- WALLET CONNECT MODAL -->
-<div id="walletModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
-  <div class="bg-gray-900/95 backdrop-blur-xl border border-purple-500/50 rounded-3xl p-10 max-w-md w-full mx-4 shadow-2xl glow-border">
-    <h2 class="text-4xl font-bold text-center mb-8 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-      Connect Wallet
-    </h2>
-    <div class="space-y-4">
-      <button data-wallet="injected" class="wallet-btn w-full py-5 px-6 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl text-xl font-bold flex items-center justify-center gap-4">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" class="w-10 h-10"/> MetaMask / Rabby / Trust
-      </button>
-      <button data-wallet="walletconnect" class="wallet-btn w-full py-5 px-6 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl text-xl font-bold flex items-center justify-center gap-4">
-        <img src="https://walletconnect.com/_next/static/media/logo_mark.84dd8521.svg" class="w-10 h-10"/> WalletConnect (Phantom, Coinbase, etc.)
-      </button>
-    </div>
-    <button id="closeModal" class="mt-8 text-gray-400 hover:text-white w-full text-center">Cancel</button>
-  </div>
-</div>
+  <h1 class="text-6xl font-bold text-center mb-2 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
+    MONAD EXIT CONTRACT
+  </h1>
+  <p class="text-center text-gray-300 mb-10">Deposit MON — Exit anytime. No admins. Pure on-chain.</p>
 
-<!-- MAIN APP -->
-<div class="w-full max-w-4xl">
-
-  <!-- Header + Connect Button -->
-  <div id="connectSection" class="text-center">
-    <h1 class="text-7xl font-bold mb-4 bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">
-      MONAD EXIT
-    </h1>
-    <p class="text-xl text-gray-300 mb-12">Deposit MON → Exit Anytime</p>
-
-    <button id="openModalBtn" class="px-12 py-6 text-2xl font-bold rounded-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-2xl wallet-btn">
-      CONNECT WALLET
+  <!-- Wallet Connect UI Section -->
+  <div id="walletSection" class="text-center mb-12">
+    <button id="connectBtn" class="px-10 py-5 text-xl font-bold rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 transition btn-glow">
+      Connect Wallet (Monad Mainnet)
     </button>
-
-    <div id="connectedInfo" class="hidden mt-10">
-      <p class="text-2xl mb-4">Connected</p>
-      <p id="addressDisplay" class="text-3xl font-mono text-purple-400 break-all"></p>
-      <button id="disconnectBtn" class="mt-6 px-8 py-3 bg-red-600/70 rounded-xl hover:bg-red-600">Disconnect</button>
-    </div>
+    <p id="walletAddress" class="mt-6 text-lg hidden"></p>
+    <p id="wrongNetwork" class="mt-4 text-red-400 text-lg font-bold hidden">
+      🔄 Switching to Monad Mainnet...
+    </p>
+    <div id="connectStatus" class="mt-2 text-sm text-yellow-400 hidden">Loading...</div>
   </div>
 
-  <!-- App After Connect -->
-  <div id="app" class="hidden mt-16 space-y-12">
+  <!-- Main App (hidden until connected & correct chain) -->
+  <div id="app" class="hidden space-y-8">
+    <div class="text-center text-green-400 mb-4">
+      <p>✅ Connected: <span id="connectedAddr" class="font-bold"></span></p>
+    </div>
 
-    <div class="grid md:grid-cols-2 gap-10">
+    <div class="grid md:grid-cols-2 gap-8">
       <!-- Deposit -->
-      <div class="bg-white/5 backdrop-blur-2xl rounded-3xl p-10 border glow-border">
-        <h3 class="text-4xl font-bold mb-8 text-green-400">Deposit MON</h3>
-        <input id="depositInput" type="text" placeholder="0.69" class="w-full bg-white/10 rounded-2xl px-6 py-5 text-2xl text-center focus:outline-none focus:ring-4 focus:ring-green-500"/>
-        <button id="depositBtn" class="mt-8 w-full py-6 text-2xl font-bold rounded-2xl bg-green-600 hover:bg-green-700 wallet-btn">
-          DEPOSIT
+      <div class="bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-purple-500/30 glow">
+        <h2 class="text-3xl font-bold mb-6">Deposit MON</h2>
+        <input id="amountInput" type="text" placeholder="0.42" class="w-full bg-white/10 rounded-xl px-5 py-4 text-xl mb-6 focus:outline-none focus:ring-4 focus:ring-purple-500"/>
+        <button id="depositBtn" class="w-full py-5 text-xl font-bold rounded-xl bg-green-600 hover:bg-green-700 transition btn-glow">
+          Deposit MON <span id="depositSpinner" class="spinner hidden"></span>
         </button>
-        <p class="mt-8 text-xl">Your balance: <span id="userBalance" class="text-green-400 font-bold">0</span> MON</p>
+        <p class="mt-6 text-lg">Your deposited: <span id="userBal" class="font-bold text-green-400">0</span> MON</p>
       </div>
 
       <!-- Exit -->
-      <div class="bg-white/5 backdrop-blur-2xl rounded-3xl p-10 border glow-border">
-        <h3 class="text-4xl font-bold mb-8 text-red-400">EXIT</h3>
-        <button id="exitBtn" class="w-full py-16 text-3xl font-bold rounded-2xl bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 wallet-btn">
-          WITHDRAW ALL MON NOW
+      <div class="bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-red-500/30 glow">
+        <h2 class="text-3xl font-bold mb-6 text-red-400">Exit (Withdraw)</h2>
+        <button id="exitBtn" class="w-full py-5 text-xl font-bold rounded-xl bg-red-600 hover:bg-red-700 transition btn-glow">
+          Exit Now — Get All MON Back <span id="exitSpinner" class="spinner hidden"></span>
         </button>
-        <p class="mt-8 text-xl">You get back: <span id="exitAmount" class="text-red-400 font-bold">0</span> MON</p>
+        <p class="mt-6 text-lg">You will receive: <span id="exitBal" class="font-bold text-red-400">0</span> MON</p>
       </div>
     </div>
 
-    <div class="text-center text-2xl">
-      Total MON locked: <span id="totalLocked" class="text-yellow-400 font-bold">0</span> MON
+    <div class="text-center">
+      <p class="text-xl">Total locked in contract: <span id="totalLocked" class="font-bold text-yellow-400">0</span> MON</p>
     </div>
   </div>
 
   <!-- Footer -->
-  <div class="text-center mt-20 text-gray-500">
-    Contract: <span class="text-purple-400 font-mono">0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3</span><br>
-    <a href="https://monad-vision.vercel.app/address/0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3" target="_blank" class="underline hover:text-white">View on Explorer</a>
+  <div class="mt-16 text-center text-gray-400 text-sm">
+    Contract: <code class="break-all text-purple-300">0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3</code><br><br>
+    <a href="https://monad-vision.vercel.app/address/0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3" target="_blank" class="underline hover:text-white">
+      View on Monad Explorer
+    </a>
   </div>
 </div>
 
 <script>
-// Your deployed contract
-const CONTRACT = "0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3";
-const ABI = ["function deposit() payable","function exit()","function balances(address) view returns (uint256)","function totalDeposited() view returns (uint256)"];
+// YOUR REAL CONTRACT ON MONAD MAINNET
+const CONTRACT_ADDRESS = "0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3";
 
-const MONAD = {
-  chainId: "0x8f",
+const ABI = [
+  "function deposit() payable",
+  "function exit()",
+  "function balances(address) view returns (uint256)",
+  "function totalDeposited() view returns (uint256)"
+];
+
+// Monad Mainnet config (forced)
+const MONAD_MAINNET = {
+  chainId: "0x8f", // 143
   chainName: "Monad Mainnet",
   nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 },
   rpcUrls: ["https://rpc.monad.xyz"],
   blockExplorerUrls: ["https://monad-vision.vercel.app"]
 };
 
-let provider, signer, contract, user;
+let provider, signer, contract, userAddress;
 
-// Force Monad Mainnet
-async function switchToMonad() {
-  try {
-    await ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: MONAD.chainId }] });
-  } catch (e) {
-    if (e.code === 4902) {
-      await ethereum.request({ method: 'wallet_addEthereumChain', params: [MONAD] });
-    }
+function showLoading(btnId, show = true) {
+  const spinner = document.getElementById(btnId + 'Spinner');
+  const btn = document.getElementById(btnId);
+  if (show) {
+    spinner.classList.remove('hidden');
+    btn.classList.add('loading');
+  } else {
+    spinner.classList.add('hidden');
+    btn.classList.remove('loading');
   }
 }
 
-// Connect with injected wallet (MetaMask, Rabby, etc.)
-async function connectInjected() {
+async function forceMonadNetwork() {
+  document.getElementById('wrongNetwork').classList.remove('hidden');
+  document.getElementById('connectStatus').classList.remove('hidden');
+  document.getElementById('connectStatus').textContent = 'Adding/Switching to Monad...';
+
+  try {
+    await ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: MONAD_MAINNET.chainId }],
+    });
+  } catch (switchError) {
+    if (switchError.code === 4902 || switchError.code === -32603) {
+      await ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [MONAD_MAINNET],
+      });
+    } else {
+      throw switchError;
+    }
+  }
+
+  document.getElementById('wrongNetwork').classList.add('hidden');
+  document.getElementById('connectStatus').classList.add('hidden');
+}
+
+async function connectWallet() {
+  if (!window.ethereum) {
+    alert("🚫 MetaMask or another EVM wallet is required! Install from metamask.io");
+    return;
+  }
+
   provider = new ethers.providers.Web3Provider(window.ethereum);
-  await switchToMonad();
-  await provider.send("eth_requestAccounts", []);
-  finishConnect();
+  showLoading('connectBtn', true);
+  document.getElementById('connectStatus').textContent = 'Connecting wallet...';
+
+  try {
+    // FORCE Monad Mainnet
+    await forceMonadNetwork();
+
+    // Request accounts
+    await provider.send("eth_requestAccounts", []);
+
+    signer = provider.getSigner();
+    userAddress = await signer.getAddress();
+    contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+
+    // UI updates
+    document.getElementById("walletAddress").classList.remove("hidden");
+    document.getElementById("walletAddress").innerHTML = `
+      Connected: <span class="text-purple-400 font-bold">${userAddress.slice(0,8)}...${userAddress.slice(-6)}</span>
+    `;
+    document.getElementById("walletSection").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    document.getElementById("connectedAddr").textContent = userAddress.slice(0,8) + "..." + userAddress.slice(-6);
+
+    showLoading('connectBtn', false);
+    await refreshBalances();
+    setupButtons();
+  } catch (err) {
+    console.error(err);
+    alert("❌ Connection failed: " + (err.message || "Unknown error. Check console."));
+    showLoading('connectBtn', false);
+    document.getElementById('connectStatus').classList.add('hidden');
+  }
 }
 
-// Connect with WalletConnect (Phantom, Coinbase, etc.)
-async function connectWalletConnect() {
-  const { default: WalletConnectProvider } = await import("https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js");
-  const wc = new WalletConnectProvider({ rpc: { 143: "https://rpc.monad.xyz" } });
-  await wc.enable();
-  provider = new ethers.providers.Web3Provider(wc);
-  await switchToMonad();
-  finishConnect();
+async function refreshBalances() {
+  try {
+    const bal = await contract.balances(userAddress);
+    const total = await contract.totalDeposited();
+
+    document.getElementById("userBal").textContent = parseFloat(ethers.utils.formatEther(bal)).toFixed(4);
+    document.getElementById("exitBal").textContent = parseFloat(ethers.utils.formatEther(bal)).toFixed(4);
+    document.getElementById("totalLocked").textContent = parseFloat(ethers.utils.formatEther(total)).toFixed(4);
+  } catch (err) {
+    console.error("Balance refresh error:", err);
+  }
 }
 
-async function finishConnect() {
-  signer = provider.getSigner();
-  user = await signer.getAddress();
-  contract = new ethers.Contract(CONTRACT, ABI, signer);
+function setupButtons() {
+  document.getElementById("depositBtn").onclick = async () => {
+    const amount = document.getElementById("amountInput").value.trim();
+    if (!amount || Number(amount) <= 0) return alert("❌ Enter a valid amount > 0");
 
-  document.getElementById("addressDisplay").textContent = user;
-  document.getElementById("connectSection").classList.add("hidden");
-  document.getElementById("connectedInfo").classList.remove("hidden");
-  document.getElementById("app").classList.remove("hidden");
-  closeModal();
-  refresh();
+    const wei = ethers.utils.parseEther(amount);
+    showLoading('depositBtn');
+    try {
+      const tx = await contract.deposit({ value: wei });
+      document.getElementById('connectStatus').textContent = `Depositing... Tx: ${tx.hash.slice(0,10)}...`;
+      await tx.wait();
+      alert("✅ Deposited " + amount + " MON! Check explorer for details.");
+      refreshBalances();
+      document.getElementById("amountInput").value = "";
+    } catch (e) {
+      alert("❌ Deposit failed: " + (e.data?.message || e.message || "Try again."));
+    } finally {
+      showLoading('depositBtn', false);
+      document.getElementById('connectStatus').classList.add('hidden');
+    }
+  };
+
+  document.getElementById("exitBtn").onclick = async () => {
+    const bal = await contract.balances(userAddress);
+    if (bal.eq(0)) return alert("❌ Nothing deposited to exit!");
+
+    showLoading('exitBtn');
+    try {
+      const tx = await contract.exit();
+      document.getElementById('connectStatus').textContent = `Exiting... Tx: ${tx.hash.slice(0,10)}...`;
+      await tx.wait();
+      alert("✅ Exited successfully! All MON returned to your wallet.");
+      refreshBalances();
+    } catch (e) {
+      alert("❌ Exit failed: " + (e.data?.message || e.message || "Try again."));
+    } finally {
+      showLoading('exitBtn', false);
+      document.getElementById('connectStatus').classList.add('hidden');
+    }
+  };
 }
 
-// UI Controls
-document.getElementById("openModalBtn").onclick = () => {
-  document.getElementById("modalBackdrop").classList.remove("hidden");
-  document.getElementById("walletModal").classList.remove("hidden");
-};
-document.getElementById("closeModal").onclick = closeModal;
-document.getElementById("modalBackdrop").onclick = closeModal;
-function closeModal() {
-  document.getElementById("modalBackdrop").classList.add("hidden");
-  document.getElementById("walletModal").classList.add("hidden");
+// Auto-connect if already on Monad and wallet is connected
+window.addEventListener('load', async () => {
+  if (window.ethereum && window.ethereum.selectedAddress) {
+    try {
+      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      if (chainId === MONAD_MAINNET.chainId) {
+        connectWallet();
+      }
+    } catch {}
+  }
+});
+
+// Listen for chain changes (re-force Monad if switched away)
+if (window.ethereum) {
+  window.ethereum.on('chainChanged', (chainId) => {
+    if (chainId !== MONAD_MAINNET.chainId) {
+      alert("⚠️ Switched away from Monad! Reloading to fix...");
+      window.location.reload();
+    }
+  });
 }
 
-document.querySelector("[data-wallet='injected']").onclick = connectInjected;
-document.querySelector("[data-wallet='walletconnect']").onclick = connectWalletConnect;
-
-document.getElementById("disconnectBtn").onclick = () => location.reload();
-
-// App Logic
-async function refresh() {
-  const bal = await contract.balances(user);
-  const total = await contract.totalDeposited();
-  document.getElementById("userBalance").textContent = ethers.utils.formatEther(bal);
-  document.getElementById("exitAmount").textContent = ethers.utils.formatEther(bal);
-  document.getElementById("totalLocked").textContent = ethers.utils.formatEther(total);
-}
-
-document.getElementById("depositBtn").onclick = async () => {
-  const amt = document.getElementById("depositInput").value;
-  if (!amt) return alert("Enter amount");
-  const tx = await contract.deposit({ value: ethers.utils.parseEther(amt) });
-  await tx.wait();
-  refresh();
-};
-
-document.getElementById("exitBtn").onclick = async () => {
-  const tx = await contract.exit();
-  await tx.wait();
-  alert("All MON withdrawn!");
-  refresh();
-};
+document.getElementById("connectBtn").onclick = connectWallet;
 </script>
 </body>
 </html>
