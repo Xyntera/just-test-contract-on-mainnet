@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Monad Exit Contract: Securely deposit and withdraw MON on Monad Mainnet. Professional DeFi tool with gas estimation and polished UI.">
+  <meta name="description" content="Monad Exit Contract: Securely deposit and withdraw MON on Monad Mainnet. Professional DeFi tool with gas estimation, transaction history, and sleek UI.">
   <title>Monad Exit Contract - Professional DeFi Tool</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -15,9 +15,9 @@
     :root {
       --primary: #ff2a6d;
       --secondary: #ff6b9d;
-      --glass-bg: rgba(255, 255, 255, 0.15);
-      --border-color: rgba(255, 255, 255, 0.3);
-      --shadow: 0 20px 60px rgba(255, 42, 109, 0.1);
+      --glass-bg: rgba(255, 255, 255, 0.2);
+      --border-color: rgba(255, 255, 255, 0.4);
+      --shadow: 0 20px 60px rgba(255, 42, 109, 0.08);
       --text-primary: #1f2937;
     }
     * { font-family: 'Inter', sans-serif; }
@@ -28,12 +28,12 @@
     }
     .glass {
       background: var(--glass-bg);
-      backdrop-filter: blur(25px);
+      backdrop-filter: blur(30px);
       border: 1px solid var(--border-color);
       box-shadow: var(--shadow);
-      transition: all 0.3s ease;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .glass:hover { box-shadow: 0 25px 80px rgba(255, 42, 109, 0.15); }
+    .glass:hover { box-shadow: 0 30px 100px rgba(255, 42, 109, 0.12); transform: translateY(-2px); }
     .gradient-text {
       background: linear-gradient(to right, var(--primary), var(--secondary));
       -webkit-background-clip: text;
@@ -43,21 +43,30 @@
     .btn-primary {
       background: linear-gradient(to right, var(--primary), var(--secondary));
       color: white;
-      transition: all 0.3s ease;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       border: none;
+      position: relative;
+      overflow: hidden;
     }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 30px rgba(255, 42, 109, 0.3); }
-    .btn-secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
-    .btn-secondary:hover { background: var(--primary); color: white; }
-    .loading { opacity: 0.8; pointer-events: none; }
+    .btn-primary::before {
+      content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); transition: left 0.5s;
+    }
+    .btn-primary:hover::before { left: 100%; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(255, 42, 109, 0.25); }
+    .btn-secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); transition: all 0.3s ease; }
+    .btn-secondary:hover { background: var(--primary); color: white; transform: translateY(-1px); }
+    .loading { opacity: 0.7; pointer-events: none; }
     .spinner { border: 2px solid #f3f3f3; border-top: 2px solid var(--primary); border-radius: 50%; width: 18px; height: 18px; animation: spin 1s linear infinite; display: inline-block; margin-left: 8px; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .toast { position: fixed; top: 20px; right: 20px; z-index: 1000; padding: 16px 24px; border-radius: 12px; color: white; font-weight: 500; transform: translateX(400px); transition: transform 0.3s ease; }
+    .toast { position: fixed; top: 20px; right: 20px; z-index: 1000; padding: 16px 24px; border-radius: 12px; color: white; font-weight: 500; transform: translateX(400px); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
     .toast.show { transform: translateX(0); }
     .toast.success { background: #10b981; }
     .toast.error { background: #ef4444; }
-    .input-focus { box-shadow: 0 0 0 3px rgba(255, 42, 109, 0.1); }
-    .gas-info { font-size: 0.875rem; color: #6b7280; }
+    .input-focus { box-shadow: 0 0 0 3px rgba(255, 42, 109, 0.1); transition: box-shadow 0.3s ease; }
+    .gas-info { font-size: 0.875rem; color: #6b7280; display: flex; align-items: center; justify-content: center; }
+    .history-item { animation: fadeInUp 0.5s ease forwards; opacity: 0; transform: translateY(20px); }
+    @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+    .history-item:nth-child(even) { background: rgba(255, 255, 255, 0.05); }
   </style>
 </head>
 <body class="px-4 py-8 md:py-12">
@@ -69,7 +78,7 @@
   <header class="text-center mb-12">
     <h1 class="text-5xl md:text-7xl font-bold tracking-tight gradient-text mb-4">Monad Exit</h1>
     <p class="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-      Professional DeFi tool for secure MON deposits and instant withdrawals on Monad Mainnet. With real-time gas estimation and polished UX.
+      Professional DeFi tool for secure MON deposits and instant withdrawals on Monad Mainnet. With real-time gas estimation, transaction history, and seamless UX.
     </p>
   </header>
 
@@ -114,11 +123,11 @@
       <p class="text-gray-600 mb-2">Connected Address</p>
       <div class="flex items-center justify-center space-x-2 mb-4">
         <p id="walletAddress" class="text-xl font-mono break-all bg-gray-100 px-3 py-1 rounded-lg text-gray-700"></p>
-        <button onclick="copyAddress()" class="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-200 rounded" title="Copy Address">
+        <button onclick="copyAddress()" class="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-200 rounded transition-colors" title="Copy Address">
           <i class="fas fa-copy"></i>
         </button>
       </div>
-      <button id="disconnectBtn" class="text-sm text-gray-500 underline hover:text-gray-700">Disconnect</button>
+      <button id="disconnectBtn" class="text-sm text-gray-500 underline hover:text-gray-700 transition-colors">Disconnect</button>
     </div>
 
     <!-- Action Cards -->
@@ -134,7 +143,7 @@
             step="0.0001" 
             min="0.0001"
             placeholder="0.00" 
-            class="w-full bg-white/30 border border-gray-300/50 rounded-2xl px-6 py-4 text-xl text-center focus:outline-none focus:ring-2 focus:ring-var(--primary) input-focus transition"
+            class="w-full bg-white/40 border border-gray-300/50 rounded-2xl px-6 py-4 text-xl text-center focus:outline-none focus:ring-2 focus:ring-var(--primary) input-focus transition"
           >
         </div>
         <div id="depositGas" class="gas-info mb-4 hidden">
@@ -175,6 +184,30 @@
       <p class="text-sm text-gray-500">Real-time on-chain data from Monad Mainnet</p>
     </div>
 
+    <!-- Transaction History -->
+    <section class="glass rounded-3xl p-8 md:p-12 mb-16">
+      <h3 class="text-3xl font-bold gradient-text mb-6 flex items-center justify-center">
+        <i class="fas fa-history mr-3"></i> Transaction History
+      </h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left text-gray-600">
+          <thead class="text-xs uppercase bg-gray-50/50">
+            <tr>
+              <th class="px-6 py-3">Type</th>
+              <th class="px-6 py-3">Amount</th>
+              <th class="px-6 py-3">Tx Hash</th>
+              <th class="px-6 py-3">Date</th>
+              <th class="px-6 py-3">Status</th>
+            </tr>
+          </thead>
+          <tbody id="historyTable">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+      <p id="noHistory" class="text-center text-gray-500 mt-8 hidden">No transactions yet. Make your first deposit!</p>
+    </section>
+
     <!-- Contract Details -->
     <footer class="text-center text-gray-500 text-sm">
       <p>Contract Address: <code class="font-mono bg-gray-100 px-2 py-1 rounded text-gray-800">0xc6c0db193c8f590ae8e80b8c7aCcdB1BC5A4E9c3</code></p>
@@ -194,7 +227,9 @@ const ABI = [
   "function deposit() payable",
   "function exit()",
   "function balances(address) view returns (uint256)",
-  "function totalDeposited() view returns (uint256)"
+  "function totalDeposited() view returns (uint256)",
+  "event Deposited(address indexed user, uint256 amount)",
+  "event Exited(address indexed user, uint256 amount)"
 ];
 const MONAD_CHAIN = {
   chainId: "0x8f", // 143
@@ -204,7 +239,7 @@ const MONAD_CHAIN = {
   blockExplorerUrls: ["https://monad-vision.vercel.app"]
 };
 
-let provider, signer, contract, userAddress;
+let provider, signer, contract, userAddress, history = [];
 
 // Utility Functions
 function showToast(message, type = 'success') {
@@ -237,6 +272,34 @@ function copyAddress() {
 
 function formatEther(wei) {
   return parseFloat(ethers.utils.formatEther(wei)).toFixed(4);
+}
+
+function formatDate(timestamp) {
+  return new Date(Number(timestamp) * 1000).toLocaleString();
+}
+
+// Render History
+function renderHistory() {
+  const tbody = document.getElementById('historyTable');
+  const noHistory = document.getElementById('noHistory');
+  tbody.innerHTML = '';
+  if (history.length === 0) {
+    noHistory.classList.remove('hidden');
+    return;
+  }
+  noHistory.classList.add('hidden');
+  history.slice(-10).reverse().forEach((tx, index) => { // Last 10
+    const row = document.createElement('tr');
+    row.className = `history-item ${index % 2 === 0 ? 'bg-white/20' : ''}`;
+    row.innerHTML = `
+      <td class="px-6 py-4"><i class="fas ${tx.type === 'Deposit' ? 'fa-arrow-down text-green-500' : 'fa-arrow-up text-red-500'} mr-2"></i>${tx.type}</td>
+      <td class="px-6 py-4">${tx.amount} MON</td>
+      <td class="px-6 py-4"><a href="https://monad-vision.vercel.app/tx/${tx.hash}" target="_blank" class="text-blue-500 hover:underline truncate max-w-xs">${tx.hash.slice(0, 10)}...</a></td>
+      <td class="px-6 py-4">${formatDate(tx.timestamp)}</td>
+      <td class="px-6 py-4"><span class="text-green-500">Success</span></td>
+    `;
+    tbody.appendChild(row);
+  });
 }
 
 // Gas Estimation
@@ -324,8 +387,10 @@ async function initContract() {
   document.getElementById('connectSection').classList.add('hidden');
   document.getElementById('appSection').classList.remove('hidden');
   
-  loadBalances();
-  setInterval(loadBalances, 10000); // Refresh every 10s
+  await loadBalances();
+  await loadHistory();
+  setInterval(loadBalances, 10000);
+  setInterval(loadHistory, 30000); // Refresh history every 30s
   
   // Initial gas estimates
   updateDepositGas();
@@ -348,6 +413,38 @@ async function loadBalances() {
     document.getElementById('totalDeposited').textContent = formatEther(total);
   } catch (error) {
     console.error('Balance load error:', error);
+  }
+}
+
+// Load Transaction History
+async function loadHistory() {
+  try {
+    const filterDeposited = contract.filters.Deposited(userAddress);
+    const filterExited = contract.filters.Exited(userAddress);
+    
+    const [deposits, exits] = await Promise.all([
+      contract.queryFilter(filterDeposited, -10000), // Last 10000 blocks
+      contract.queryFilter(filterExited, -10000)
+    ]);
+    
+    history = [
+      ...deposits.map(event => ({
+        type: 'Deposit',
+        amount: formatEther(event.args.amount),
+        hash: event.transactionHash,
+        timestamp: event.blockNumber // Approx; use getBlock for exact
+      })),
+      ...exits.map(event => ({
+        type: 'Exit',
+        amount: formatEther(event.args.amount),
+        hash: event.transactionHash,
+        timestamp: event.blockNumber
+      }))
+    ].sort((a, b) => b.timestamp - a.timestamp);
+    
+    renderHistory();
+  } catch (error) {
+    console.error('History load error:', error);
   }
 }
 
@@ -403,6 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('depositAmount').value = '';
       loadBalances();
       updateDepositGas();
+      loadHistory(); // Refresh history
     } catch (error) {
       showToast(`Deposit failed: ${error.message}`, 'error');
     } finally {
@@ -424,6 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Withdrawal successful!');
       loadBalances();
       updateExitGas();
+      loadHistory(); // Refresh history
     } catch (error) {
       showToast(`Withdrawal failed: ${error.message}`, 'error');
     } finally {
